@@ -41,6 +41,7 @@ export const generateTrendingSuggestions = (): Suggestion[] => [
   { id: '4', text: 'Future of renewable energy', category: 'trending' },
 ];
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const generateFollowUpSuggestions = (userQuery: string): Suggestion[] => [
   { id: '1', text: 'Tell me more about this topic', category: 'follow-up' },
   { id: '2', text: 'Show me related research', category: 'related' },

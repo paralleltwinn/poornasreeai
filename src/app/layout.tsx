@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Roboto } from "next/font/google";
 import "./globals.css";
 import ThemeRegistry from "../theme/ThemeRegistry";
+import { AuthProvider } from "../contexts/AuthContext";
+import { SnackbarProvider } from "../contexts/SnackbarContext";
 import { appConfig } from "../config/app";
 
 const roboto = Roboto({
@@ -52,7 +54,11 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${roboto.variable} antialiased`}>
         <ThemeRegistry>
-          {children}
+          <AuthProvider>
+            <SnackbarProvider>
+              {children}
+            </SnackbarProvider>
+          </AuthProvider>
         </ThemeRegistry>
       </body>
     </html>

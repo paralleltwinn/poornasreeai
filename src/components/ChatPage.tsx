@@ -2,30 +2,17 @@
 
 import { useState, useEffect, useRef } from 'react';
 import {
-  Container,
   Box,
   Typography,
   TextField,
   IconButton,
-  Paper,
-  Avatar,
-  Chip,
-  Fab,
-  Fade,
-  Grow,
   useTheme,
-  useMediaQuery,
-  Card,
-  CardContent,
   Button,
-  Skeleton,
 } from '@mui/material';
 import {
   Send as SendIcon,
   Psychology as PsychologyIcon,
   Search as SearchIcon,
-  TrendingUp as TrendingUpIcon,
-  MenuBook as MenuBookIcon,
   AutoAwesome as AutoAwesomeIcon,
   Lightbulb as LightbulbIcon,
   Science as ScienceIcon,
@@ -39,12 +26,10 @@ import LoadingAnimation from './LoadingAnimation';
 
 const ChatPage = () => {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
-  const [currentPlaceholder, setCurrentPlaceholder] = useState(0);
   const [showWelcome, setShowWelcome] = useState(true);
   const [typedText, setTypedText] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -67,16 +52,6 @@ const ChatPage = () => {
       return () => clearInterval(timer);
     }
   }, [showWelcome, messages.length, welcomeText]);
-
-  // Rotate placeholder text
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentPlaceholder((prev) => 
-        (prev + 1) % appConfig.chat.placeholders.length
-      );
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -183,7 +158,7 @@ const ChatPage = () => {
           >
             <Box
               component="img"
-              src="/logo/fulllogo (1).png"
+              src="/logo/fulllogo.png"
               alt={`${appConfig.name} Logo`}
               sx={{
                 height: 64,
@@ -363,7 +338,7 @@ const ChatPage = () => {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Box
             component="img"
-            src="/logo/fulllogo (1).png"
+            src="/logo/fulllogo.png"
             alt={`${appConfig.name} Logo`}
             sx={{
               height: 28,

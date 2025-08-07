@@ -6,17 +6,16 @@ import {
   Drawer,
   IconButton,
   List,
-  ListItem,
   ListItemButton,
   ListItemIcon,
-  ListItemText,
   Typography,
   Avatar,
   Divider,
-  Fade,
-  Collapse,
   useTheme,
   useMediaQuery,
+  Modal,
+  Chip,
+  Tooltip,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -25,14 +24,16 @@ import {
   Settings as SettingsIcon,
   Person as PersonIcon,
   Add as AddIcon,
-  Search as SearchIcon,
-  TrendingUp as TrendingUpIcon,
   BookmarkBorder as BookmarkIcon,
-  MoreVert as MoreVertIcon,
+  Login as LoginIcon,
+  Logout as LogoutIcon,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { appConfig } from '../config/app';
 import { ChatSession } from '../types/chat';
+import { useAuth } from '../contexts/AuthContext';
+import { UserRole } from '../types/auth';
+import AuthModal from './auth/AuthModal';
 
 interface SidebarLayoutProps {
   children: React.ReactNode;
@@ -44,8 +45,11 @@ const SIDEBAR_WIDTH_EXPANDED = 280;
 const SidebarLayout = ({ children }: SidebarLayoutProps) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const { user, isAuthenticated, logout } = useAuth();
+  
   const [isExpanded, setIsExpanded] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
   const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
@@ -123,6 +127,28 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
     };
     setChatSessions([newSession, ...chatSessions]);
     setSelectedSession(newSession.id);
+  };
+
+  const handleAuthClick = () => {
+    if (isAuthenticated) {
+      // If user is super admin, open dashboard in new tab
+      const isSuperAdmin = user?.role === UserRole.SUPER_ADMIN || 
+                          user?.role?.toString().toUpperCase() === 'SUPER_ADMIN' ||
+                          user?.role?.toString().toLowerCase() === 'super_admin';
+                          
+      if (isSuperAdmin) {
+        window.open('/dashboard', '_blank');
+      } else {
+        // For other users, logout
+        logout();
+      }
+    } else {
+      setIsAuthModalOpen(true);
+    }
+  };
+
+  const handleAuthSuccess = () => {
+    setIsAuthModalOpen(false);
   };
 
   const formatRelativeTime = (date: Date) => {
@@ -492,79 +518,140 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
         ))}
       </List>
 
-      {/* User Profile */}
+      {/* User Profile / Authentication */}
       <Box sx={{ p: 1 }}>
-        <ListItemButton
-          sx={{
-            borderRadius: 2,
-            minHeight: 48, // Fixed height
-            height: 48,
-            justifyContent: 'center',
-            px: isExpanded || isMobile ? 2 : 1,
-            position: 'relative',
-            overflow: 'hidden',
-          }}
-        >
-          {!(isExpanded || isMobile) ? (
-            // Collapsed state - center the avatar
-            <Avatar sx={{ width: 32, height: 32, bgcolor: 'secondary.main' }}>
-              <PersonIcon fontSize="small" />
-            </Avatar>
-          ) : (
-            // Expanded state - show avatar and text
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                width: '100%',
-                justifyContent: 'flex-start',
-              }}
+        {(() => {
+          const isSuperAdmin = isAuthenticated && (
+            user?.role === UserRole.SUPER_ADMIN || 
+            user?.role?.toString().toUpperCase() === 'SUPER_ADMIN' ||
+            user?.role?.toString().toLowerCase() === 'super_admin'
+          );
+          
+          return (
+            <Tooltip 
+              title={
+                isAuthenticated 
+                  ? isSuperAdmin 
+                    ? "Open Dashboard" 
+                    : "Logout"
+                  : "Sign In"
+              }
+              placement="right"
             >
-              <ListItemIcon 
-                sx={{ 
-                  minWidth: 40,
-                  mr: 0,
-                  display: 'flex',
-                  alignItems: 'center',
+              <ListItemButton
+                onClick={handleAuthClick}
+                sx={{
+                  borderRadius: 2,
+                  minHeight: 48,
+                  height: 48,
                   justifyContent: 'center',
-                  flexShrink: 0,
+                  px: isExpanded || isMobile ? 2 : 1,
+                  position: 'relative',
+                  overflow: 'hidden',
+                  '&:hover': {
+                    bgcolor: 'action.hover',
+                  },
                 }}
               >
-                <Avatar sx={{ width: 32, height: 32, bgcolor: 'secondary.main' }}>
-                  <PersonIcon fontSize="small" />
-                </Avatar>
-              </ListItemIcon>
-              <AnimatePresence mode="wait">
-                <motion.div
-                  initial={{ opacity: 0, width: 0 }}
-                  animate={{ opacity: 1, width: 'auto' }}
-                  exit={{ opacity: 0, width: 0 }}
-                  transition={{ 
-                    duration: 0.3,
-                    ease: [0.4, 0.0, 0.2, 1],
-                    opacity: { duration: 0.2 },
-                    width: { duration: 0.3 }
-                  }}
-                  style={{
-                    overflow: 'hidden',
-                    whiteSpace: 'nowrap',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Typography variant="body2" sx={{ mb: 0.25, lineHeight: 1.2 }}>
-                    User
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>
-                    Free Plan
-                  </Typography>
-                </motion.div>
-              </AnimatePresence>
-            </Box>
-          )}
-          </ListItemButton>
-        </Box>
+                {!(isExpanded || isMobile) ? (
+                  // Collapsed state - show appropriate icon
+                  <Avatar sx={{ width: 32, height: 32, bgcolor: isAuthenticated ? 'secondary.main' : 'primary.main' }}>
+                    {isAuthenticated ? (
+                      <PersonIcon fontSize="small" />
+                    ) : (
+                      <LoginIcon fontSize="small" />
+                    )}
+                  </Avatar>
+                ) : (
+                  // Expanded state - show full authentication info
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      width: '100%',
+                      justifyContent: 'flex-start',
+                    }}
+                  >
+                    <ListItemIcon 
+                      sx={{ 
+                        minWidth: 40,
+                        mr: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <Avatar sx={{ width: 32, height: 32, bgcolor: isAuthenticated ? 'secondary.main' : 'primary.main' }}>
+                        {isAuthenticated ? (
+                          <PersonIcon fontSize="small" />
+                        ) : (
+                          <LoginIcon fontSize="small" />
+                        )}
+                      </Avatar>
+                    </ListItemIcon>
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                        initial={{ opacity: 0, width: 0 }}
+                        animate={{ opacity: 1, width: 'auto' }}
+                        exit={{ opacity: 0, width: 0 }}
+                        transition={{ 
+                          duration: 0.3,
+                          ease: [0.4, 0.0, 0.2, 1],
+                          opacity: { duration: 0.2 },
+                          width: { duration: 0.3 }
+                        }}
+                        style={{
+                          overflow: 'hidden',
+                          whiteSpace: 'nowrap',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'center',
+                          flex: 1,
+                        }}
+                      >
+                        {isAuthenticated ? (
+                          <>
+                            <Typography variant="body2" sx={{ mb: 0.25, lineHeight: 1.2 }}>
+                              {user?.first_name || 'User'}
+                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Chip 
+                                label={user?.role || 'USER'} 
+                                size="small" 
+                                sx={{ 
+                                  height: 16, 
+                                  fontSize: '0.65rem',
+                                  '& .MuiChip-label': { px: 0.5 }
+                                }} 
+                              />
+                              {/* Show different icon based on user role */}
+                              {isSuperAdmin ? (
+                                <SettingsIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+                              ) : (
+                                <LogoutIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+                              )}
+                            </Box>
+                          </>
+                        ) : (
+                          <>
+                            <Typography variant="body2" sx={{ mb: 0.25, lineHeight: 1.2 }}>
+                              Sign In
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>
+                              Access your account
+                            </Typography>
+                          </>
+                        )}
+                      </motion.div>
+                    </AnimatePresence>
+                  </Box>
+                )}
+              </ListItemButton>
+            </Tooltip>
+          );
+        })()}
+      </Box>
     </Box>
   );
 
@@ -653,6 +740,32 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
       >
         {children}
       </Box>
+
+      {/* Authentication Modal */}
+      <Modal
+        open={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          p: 2,
+        }}
+      >
+        <Box
+          sx={{
+            width: '100%',
+            maxWidth: 500,
+            outline: 'none',
+          }}
+        >
+          <AuthModal
+            onClose={() => setIsAuthModalOpen(false)}
+            onAuthSuccess={handleAuthSuccess}
+            initialStep="login"
+          />
+        </Box>
+      </Modal>
     </Box>
   );
 };
