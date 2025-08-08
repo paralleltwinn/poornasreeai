@@ -130,6 +130,13 @@ export default function AddAdminForm({ onSuccess }: AddAdminFormProps) {
 
       const responseData = await response.json();
 
+      // Debug logging
+      console.log('API Response Status:', response.status);
+      console.log('API Response OK:', response.ok);
+      console.log('API Response Data:', responseData);
+      console.log('Success property:', responseData.success);
+      console.log('Success property type:', typeof responseData.success);
+
       if (response.ok && responseData.success) {
         showSuccess(responseData.message || 'Admin created successfully!', 'Success');
         setFormData({
@@ -143,6 +150,7 @@ export default function AddAdminForm({ onSuccess }: AddAdminFormProps) {
         });
         onSuccess();
       } else {
+        console.log('Condition failed - response.ok:', response.ok, 'responseData.success:', responseData.success);
         const errorMessage = responseData.message || responseData.detail || 'Failed to create admin';
         showError(errorMessage, 'Creation Failed');
       }
