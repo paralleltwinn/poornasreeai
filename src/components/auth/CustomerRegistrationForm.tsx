@@ -30,6 +30,7 @@ import {
   MarkEmailRead,
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
+import LoadingAnimation from '../LoadingAnimation';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import { useApiResponse } from '../../hooks/useApiResponse';
@@ -400,7 +401,7 @@ const CustomerRegistrationForm: React.FC<CustomerRegistrationProps> = ({
                   fontWeight: 500,
                 }}
               >
-                Send Verification Code
+                {isLoading ? <LoadingAnimation size={24} /> : 'Send Verification Code'}
               </Button>
             </Stack>
           ) : (
@@ -461,7 +462,7 @@ const CustomerRegistrationForm: React.FC<CustomerRegistrationProps> = ({
                     fontWeight: 500,
                   }}
                 >
-                  Create Account
+                  {isLoading ? <LoadingAnimation size={24} /> : 'Create Account'}
                 </Button>
 
                 <Button

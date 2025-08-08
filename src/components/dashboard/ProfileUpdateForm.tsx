@@ -11,7 +11,6 @@ import {
   Grid,
   IconButton,
   InputAdornment,
-  CircularProgress,
 } from '@mui/material';
 import {
   Visibility,
@@ -20,6 +19,7 @@ import {
   Lock as LockIcon,
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
+import LoadingAnimation from '../LoadingAnimation';
 
 import { useAuth } from '@/contexts/AuthContext';
 import { useSnackbar } from '@/contexts/SnackbarContext';
@@ -312,7 +312,7 @@ export default function ProfileUpdateForm({ onSuccess }: ProfileUpdateFormProps)
                       variant="contained"
                       size="large"
                       disabled={loading}
-                      startIcon={loading ? <CircularProgress size={20} /> : <SaveIcon />}
+                      startIcon={loading ? <LoadingAnimation size={20} /> : <SaveIcon />}
                       sx={{ minWidth: 150 }}
                     >
                       {loading ? 'Updating...' : 'Update Profile'}

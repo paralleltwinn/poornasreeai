@@ -41,6 +41,7 @@ This is a comprehensive Next.js application called "Poornasree AI" featuring a c
 - ✅ **Custom Branding**: Logo integration system with iconlogo.png and fulllogo.png assets
 - ✅ **Responsive Design**: Mobile-first approach with adaptive layouts and touch interactions
 - ✅ **Animation Framework**: Consistent Framer Motion animations with Material Design easing
+- ✅ **Loading Animation System**: Comprehensive branded loading states using iconlogo.png throughout the application
 - ✅ **Error Handling**: Comprehensive snackbar notification system with role-specific messaging
 
 ## Design Principles & Guidelines
@@ -61,8 +62,11 @@ This is a comprehensive Next.js application called "Poornasree AI" featuring a c
 
 ### Animation & Interaction Patterns
 - **Material Design Easing**: Use `[0.4, 0, 0.2, 1]` cubic-bezier for all transitions
-- **Loading States**: Custom iconlogo.png animations with rotate-stop-rotate patterns
+- **Branded Loading States**: Custom iconlogo.png animations with rotate-stop-rotate patterns used throughout the application
+- **Loading Component System**: Comprehensive loading animation components (LoadingAnimation, LoadingWithText, PulseLoadingAnimation)
+- **Consistent Loading UX**: All loading states use branded logo animations instead of generic spinners
 - **Smooth Transitions**: 300ms duration for most UI state changes with consistent timing
+- **Button Loading States**: Interactive buttons show logo animations when processing requests
 - **Hover Behaviors**: Subtle hover effects with appropriate feedback delays
 - **Progressive Enhancement**: Graceful degradation when animations are disabled
 
@@ -119,16 +123,104 @@ src/
 - **Request Interceptors**: Token validation and automatic refresh logic
 
 ### Animation Implementation
-- **LoadingAnimation Component**: Custom branded animations using iconlogo.png
+- **LoadingAnimation Component**: Custom branded animations using iconlogo.png with multiple variants
+- **LoadingWithText Component**: Animated loading with branded logo and custom text with typing dots
+- **PulseLoadingAnimation Component**: Alternative pulse-style loading for specific contexts
+- **ButtonLoading Component**: Inline loading states for interactive buttons and forms
 - **Transparent Backgrounds**: Proper PNG transparency with `background: 'none !important'` overrides
-- **Multiple Variants**: Rotation, pulse, and text-based loading states
-- **Framer Motion Integration**: Consistent animation timing and easing throughout
+- **Multiple Variants**: Rotation, pulse, and text-based loading states for different contexts
+- **Consistent Implementation**: All loading states replaced CircularProgress with branded animations
+- **Framer Motion Integration**: Consistent animation timing and easing throughout application
 
 ### Logo Asset Management
 - **iconlogo.png**: Used in sidebar collapsed state and loading animations
 - **fulllogo.png**: Used in welcome screen and main chat interface header
 - **Transparent Handling**: Ensure proper PNG transparency without white backgrounds
 - **Responsive Sizing**: Scale logos appropriately for different screen sizes
+
+## Loading Animation System
+
+### Core Loading Components
+The application uses a comprehensive branded loading animation system that replaces all generic Material UI CircularProgress components with custom logo-based animations.
+
+#### LoadingAnimation.tsx - Main Loading Component
+```typescript
+interface LoadingAnimationProps {
+  size?: number;           // Default: 48px
+  duration?: number;       // Default: 1.5s
+  pauseDuration?: number;  // Default: 0.5s
+}
+
+// Features:
+// - Rotate-pause-rotate animation pattern with Material Design easing
+// - Transparent background handling for proper logo display
+// - Configurable size and timing for different contexts
+// - Subtle scale animation for breathing effect
+```
+
+#### LoadingWithText Component
+```typescript
+interface LoadingWithTextProps extends LoadingAnimationProps {
+  text?: string;          // Default: "Loading..."
+  showText?: boolean;     // Default: true
+}
+
+// Features:
+// - Combines LoadingAnimation with animated text
+// - Typing dots animation with staggered delays
+// - Used for page-level loading states with context
+```
+
+#### PulseLoadingAnimation Component
+```typescript
+// Alternative loading style for specific contexts
+// - Pulse and opacity animation instead of rotation
+// - Softer visual effect for sensitive areas
+// - Same transparent background handling
+```
+
+#### ButtonLoading Component
+```typescript
+interface ButtonLoadingProps {
+  size?: number;          // Default: 20px for button context
+  variant?: 'rotate' | 'pulse';
+}
+
+// Features:
+// - Optimized for inline button usage
+// - Smaller default size for button context
+// - Maintains button layout without shifting
+```
+
+### Implementation Guidelines
+
+#### Replacing CircularProgress
+```typescript
+// ❌ OLD: Generic Material UI spinner
+{loading ? <CircularProgress size={24} /> : 'Submit'}
+
+// ✅ NEW: Branded logo animation
+{loading ? <LoadingAnimation size={24} /> : 'Submit'}
+
+// ✅ BUTTON CONTEXT: Optimized for buttons
+{loading ? <ButtonLoading size={20} /> : 'Submit'}
+
+// ✅ PAGE LOADING: With descriptive text
+<LoadingWithText text="Loading dashboard..." size={48} />
+```
+
+#### Animation Consistency
+- **Timing**: Use Material Design easing `[0.4, 0, 0.2, 1]` for all animations
+- **Duration**: Standard 1.5s rotation with 0.5s pause for primary loading
+- **Size Standards**: 20px for buttons, 48px for cards, 64px for page loading
+- **Background**: Always use transparent backgrounds to prevent white artifacts
+
+#### Context-Specific Usage
+- **Authentication Forms**: LoadingAnimation in button startIcon
+- **Dashboard Loading**: LoadingWithText with descriptive messages
+- **Table Loading**: LoadingWithText centered with "Loading data..." message
+- **Button States**: ButtonLoading component for inline button loading
+- **Page Transitions**: Full-screen Loading component with app-specific messages
 
 ## Current Feature Set
 
@@ -161,6 +253,7 @@ src/
 3. **TypeScript Safety**: Define comprehensive interfaces in `/types` before implementation
 4. **Error Handling**: Implement proper API response handling with snackbar notifications
 5. **Brand Integration**: Incorporate logos and design system consistently
+6. **Loading States**: Use branded LoadingAnimation components instead of CircularProgress
 
 ### When Modifying Existing Components
 1. **Preserve Authentication**: Maintain existing role-based protections and user flows
@@ -168,6 +261,7 @@ src/
 3. **Test All User Roles**: Verify functionality across SUPER_ADMIN, ADMIN, ENGINEER, CUSTOMER
 4. **Maintain Responsive Design**: Ensure mobile and desktop compatibility
 5. **Update Documentation**: Keep component interfaces and prop definitions current
+6. **Consistent Loading UX**: Replace any CircularProgress with branded loading animations
 
 ### Testing Guidelines
 - **Role-Based Testing**: Verify components work correctly for each user role
@@ -305,3 +399,26 @@ interface SnackbarContextType {
 - **Accessibility**: Minimum 16px base size, proper line heights for readability
 
 This project represents a comprehensive authentication system with modern Material Design 3 aesthetics, combining sophisticated user management with a clean, professional interface that scales from individual users to enterprise-level admin dashboards.
+
+## Recent Updates
+
+### Loading Animation System Implementation ✅ COMPLETE
+- **Comprehensive Replacement**: All CircularProgress components replaced with branded LoadingAnimation
+- **Components Updated**: TestLogin, ProfileUpdateForm, AdminList, AddAdminForm, authentication forms
+- **Button Integration**: Loading states in all interactive buttons show logo animations
+- **Page Loading**: App loading states use branded animations with descriptive text
+- **Consistent Branding**: Unified loading experience across the entire application
+
+### Database Initialization Cleanup ✅ COMPLETE
+- **Production Ready**: Database init script (`init.py`) cleaned of all sample data
+- **Sample Data Removed**: No more test customers, engineers, or sample admin accounts
+- **Clean Setup**: Only creates essential super admin user for production deployment
+- **Requirements Merged**: Combined requirements.txt and requirements-core.txt for simplified dependency management
+
+### Email Template Standardization ✅ COMPLETE
+- **Unified Design System**: All HTML email templates now use consistent modern design
+- **Base Template System**: Created get_base_email_template() with standardized styling
+- **Comprehensive Coverage**: Updated 6+ email templates (verification, OTP, welcome, application, approval, rejection)
+- **Modern Material Design**: Professional gradients, typography, and responsive layout
+- **Brand Consistency**: Unified color schemes, button styles, and layout structure across all emails
+- **Admin Notifications**: Separate admin notification template with action buttons for engineer applications

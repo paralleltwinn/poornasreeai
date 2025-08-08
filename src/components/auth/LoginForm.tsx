@@ -31,6 +31,7 @@ import {
   MarkEmailRead,
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
+import LoadingAnimation from '../LoadingAnimation';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApiResponse } from '../../hooks/useApiResponse';
 import { LoginRequest, OTPRequest, OTPVerifyRequest } from '../../types/auth';
@@ -266,7 +267,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onRegisterClick, onSuccess }) => 
                 fontWeight: 500,
               }}
             >
-              Sign In
+              {isLoading ? <LoadingAnimation size={24} /> : 'Sign In'}
             </Button>
           ) : !otpSent ? (
             <Button
@@ -282,7 +283,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onRegisterClick, onSuccess }) => 
                 fontWeight: 500,
               }}
             >
-              Send OTP
+              {isLoading ? <LoadingAnimation size={24} /> : 'Send OTP'}
             </Button>
           ) : (
             <Stack spacing={2}>
@@ -299,7 +300,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onRegisterClick, onSuccess }) => 
                   fontWeight: 500,
                 }}
               >
-                Verify & Sign In
+                {isLoading ? <LoadingAnimation size={24} /> : 'Verify & Sign In'}
               </Button>
               
               <Button

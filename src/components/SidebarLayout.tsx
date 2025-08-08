@@ -205,7 +205,7 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
             <Box
               component="img"
               src="/logo/iconlogo.png"
-              alt={`${appConfig.name} Logo`}
+              alt=""
               sx={{
                 width: 32,
                 height: 32,

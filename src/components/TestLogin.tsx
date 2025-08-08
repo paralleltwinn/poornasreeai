@@ -9,11 +9,11 @@ import {
   Button,
   Typography,
   Alert,
-  CircularProgress,
   Container,
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
 import { LoginRequest } from '../types/auth';
+import LoadingAnimation from './LoadingAnimation';
 
 const TestLogin: React.FC = () => {
   const { login, isLoading, error } = useAuth();
@@ -91,7 +91,7 @@ const TestLogin: React.FC = () => {
                 sx={{ mt: 3, mb: 2 }}
                 disabled={isLoading}
               >
-                {isLoading ? <CircularProgress size={24} /> : 'Login'}
+                {isLoading ? <LoadingAnimation size={24} /> : 'Login'}
               </Button>
             </form>
 

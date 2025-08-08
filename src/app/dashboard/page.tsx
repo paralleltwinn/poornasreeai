@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { UserRole } from '@/types/auth';
 import { Alert, Snackbar } from '@mui/material';
+import LoadingAnimation from '@/components/LoadingAnimation';
 
 // Import dashboard components
 import SuperAdminDashboard from '@/components/dashboard/SuperAdminDashboard';
@@ -109,8 +110,7 @@ export default function DashboardPage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p>Loading authentication...</p>
+          <LoadingAnimation size={48} />
         </div>
       </div>
     );
@@ -128,8 +128,7 @@ export default function DashboardPage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p>Checking permissions...</p>
+          <LoadingAnimation size={48} />
         </div>
       </div>
     );

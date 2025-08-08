@@ -31,6 +31,7 @@ import {
   ArrowBack,
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
+import LoadingAnimation from '../LoadingAnimation';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApiResponse } from '../../hooks/useApiResponse';
 import { EngineerRegistration } from '../../types/auth';
@@ -278,7 +279,7 @@ const EngineerRegistrationForm: React.FC<EngineerRegistrationProps> = ({
               marginTop: 3,
             }}
           >
-            Submit Application
+            {isLoading ? <LoadingAnimation size={24} /> : 'Submit Application'}
           </Button>
 
           <Button

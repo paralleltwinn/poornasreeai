@@ -16,7 +16,6 @@ import {
   Chip,
   IconButton,
   Avatar,
-  CircularProgress,
   Tooltip,
   Button,
   Dialog,
@@ -35,6 +34,7 @@ import {
   SupervisorAccount as SuperAdminIcon,
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
+import { LoadingWithText, default as LoadingAnimation } from '../LoadingAnimation';
 
 import { useSnackbar } from '@/contexts/SnackbarContext';
 
@@ -166,7 +166,7 @@ export default function AdminList({ onRefresh }: AdminListProps) {
   if (loading) {
     return (
       <Box sx={{ p: 3, display: 'flex', justifyContent: 'center' }}>
-        <CircularProgress />
+        <LoadingWithText text="Loading admins..." size={48} />
       </Box>
     );
   }
@@ -289,7 +289,7 @@ export default function AdminList({ onRefresh }: AdminListProps) {
                               size="small"
                             >
                               {deleteLoading === admin.id ? (
-                                <CircularProgress size={20} />
+                                <LoadingAnimation size={20} />
                               ) : (
                                 <DeleteIcon />
                               )}

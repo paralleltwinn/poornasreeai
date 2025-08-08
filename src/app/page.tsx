@@ -6,7 +6,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { UserRole } from '../types/auth';
 import ChatPage from '../components/ChatPage';
 import SidebarLayout from '../components/SidebarLayout';
-import { Box, Button, Typography } from '@mui/material';
 
 export default function Home() {
   const { user, isAuthenticated } = useAuth();
@@ -46,17 +45,6 @@ export default function Home() {
   // Always show the chat interface (no redirect for super admin)
   return (
     <div>
-      {/* Debug Panel - Remove in production */}
-      {process.env.NODE_ENV === 'development' && (
-        <Box sx={{ position: 'fixed', top: 10, right: 10, background: 'white', p: 1, border: '1px solid #ccc', zIndex: 9999 }}>
-          <Typography variant="caption">
-            Debug: Auth={isAuthenticated ? 'Y' : 'N'}, Role={user?.role || 'None'}, Token={localStorage.getItem('auth_token') ? 'Y' : 'N'}
-          </Typography>
-          <br />
-          <Button size="small" onClick={() => localStorage.clear()}>Clear Storage</Button>
-        </Box>
-      )}
-      
       <SidebarLayout>
         <ChatPage />
       </SidebarLayout>

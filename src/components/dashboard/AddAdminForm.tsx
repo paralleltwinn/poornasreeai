@@ -11,7 +11,6 @@ import {
   Grid,
   IconButton,
   InputAdornment,
-  CircularProgress,
   FormControl,
   InputLabel,
   Select,
@@ -25,6 +24,7 @@ import {
   AdminPanelSettings as AdminIcon,
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
+import LoadingAnimation from '../LoadingAnimation';
 
 import { useSnackbar } from '@/contexts/SnackbarContext';
 import { DEPARTMENTS } from '@/constants/departments';
@@ -336,7 +336,7 @@ export default function AddAdminForm({ onSuccess }: AddAdminFormProps) {
                       variant="contained"
                       size="large"
                       disabled={loading}
-                      startIcon={loading ? <CircularProgress size={20} /> : <PersonAddIcon />}
+                      startIcon={loading ? <LoadingAnimation size={20} /> : <PersonAddIcon />}
                       sx={{ minWidth: 150 }}
                     >
                       {loading ? 'Creating...' : 'Create Admin'}
