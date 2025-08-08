@@ -39,6 +39,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import ProfileUpdateForm from '@/components/dashboard/ProfileUpdateForm';
 import AddAdminForm from '@/components/dashboard/AddAdminForm';
 import AdminList from '@/components/dashboard/AdminList';
+import SystemStatusIndicators from '@/components/dashboard/SystemStatusIndicators';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -255,6 +256,11 @@ export default function SuperAdminDashboard() {
           </Grid>
         )}
 
+        {/* Compact System Status */}
+        <Box sx={{ mb: 3 }}>
+          <SystemStatusIndicators compact showTitle={false} showRefreshButton={false} />
+        </Box>
+
         {/* Tabs */}
         <Paper elevation={2} sx={{ borderRadius: 2 }}>
           <Tabs
@@ -395,6 +401,11 @@ export default function SuperAdminDashboard() {
                       </Card>
                     </Grid>
                   </Grid>
+
+                  {/* System Status Indicators */}
+                  <Box sx={{ mt: 4 }}>
+                    <SystemStatusIndicators showTitle showRefreshButton />
+                  </Box>
                 </Box>
               </TabPanel>
 

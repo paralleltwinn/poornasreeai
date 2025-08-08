@@ -3,14 +3,14 @@
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { UserRole } from '@/types/auth';
 import { Alert, Snackbar } from '@mui/material';
 import LoadingAnimation from '@/components/LoadingAnimation';
 
 // Import dashboard components
 import SuperAdminDashboard from '@/components/dashboard/SuperAdminDashboard';
-import AdminDashboard from '@/components/dashboard/AdminDashboard';
+import ProfessionalAdminDashboard from '@/components/dashboard/ProfessionalAdminDashboard';
 
 export default function DashboardPage() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -18,48 +18,7 @@ export default function DashboardPage() {
   const searchParams = useSearchParams();
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
-  useEffect(() => {
-    // Don't do anything while still loading auth state
-    if (isLoading) {
-      console.log('Dashboard page - Auth still loading...');
-      return;
-    }
-
-    console.log('Dashboard page - Auth loaded:', { isAuthenticated, userRole: user?.role });
-    
-    if (!isAuthenticated) {
-      console.log('Not authenticated, redirecting to home');
-      router.push('/');
-      return;
-    }
-
-    // Check if user has admin privileges (ADMIN or SUPER_ADMIN)
-    const isSuperAdmin = user?.role === UserRole.SUPER_ADMIN || 
-                        user?.role?.toString().toUpperCase() === 'SUPER_ADMIN' ||
-                        user?.role?.toString().toLowerCase() === 'super_admin';
-                        
-    const isAdmin = user?.role === UserRole.ADMIN || 
-                   user?.role?.toString().toUpperCase() === 'ADMIN' ||
-                   user?.role?.toString().toLowerCase() === 'admin';
-                        
-    if (!isSuperAdmin && !isAdmin) {
-      console.log('Not admin or super admin, role:', user?.role, 'redirecting to home');
-      router.push('/');
-      return;
-    }
-    
-    console.log('Admin access granted, role:', user?.role);
-    
-    // Check for email action parameters
-    const applicationId = searchParams.get('application_id');
-    const action = searchParams.get('action');
-    
-    if (applicationId && action && (action === 'approve' || action === 'reject')) {
-      handleEmailAction(applicationId, action);
-    }
-  }, [isAuthenticated, user, router, isLoading, searchParams]);
-
-  const handleEmailAction = async (applicationId: string, action: 'approve' | 'reject') => {
+  const handleEmailAction = useCallback(async (applicationId: string, action: 'approve' | 'reject') => {
     try {
       const token = localStorage.getItem('auth_token');
       
@@ -103,7 +62,48 @@ export default function DashboardPage() {
         type: 'error' 
       });
     }
-  };
+  }, [router]);
+
+  useEffect(() => {
+    // Don't do anything while still loading auth state
+    if (isLoading) {
+      console.log('Dashboard page - Auth still loading...');
+      return;
+    }
+
+    console.log('Dashboard page - Auth loaded:', { isAuthenticated, userRole: user?.role });
+    
+    if (!isAuthenticated) {
+      console.log('Not authenticated, redirecting to home');
+      router.push('/');
+      return;
+    }
+
+    // Check if user has admin privileges (ADMIN or SUPER_ADMIN)
+    const isSuperAdmin = user?.role === UserRole.SUPER_ADMIN || 
+                        user?.role?.toString().toUpperCase() === 'SUPER_ADMIN' ||
+                        user?.role?.toString().toLowerCase() === 'super_admin';
+                        
+    const isAdmin = user?.role === UserRole.ADMIN || 
+                   user?.role?.toString().toUpperCase() === 'ADMIN' ||
+                   user?.role?.toString().toLowerCase() === 'admin';
+                        
+    if (!isSuperAdmin && !isAdmin) {
+      console.log('Not admin or super admin, role:', user?.role, 'redirecting to home');
+      router.push('/');
+      return;
+    }
+    
+    console.log('Admin access granted, role:', user?.role);
+    
+    // Check for email action parameters
+    const applicationId = searchParams.get('application_id');
+    const action = searchParams.get('action');
+    
+    if (applicationId && action && (action === 'approve' || action === 'reject')) {
+      handleEmailAction(applicationId, action);
+    }
+  }, [isAuthenticated, user, router, isLoading, searchParams, handleEmailAction]);
 
   // Show loading while auth state is being determined
   if (isLoading) {
@@ -138,7 +138,7 @@ export default function DashboardPage() {
   return (
     <>
       {isSuperAdmin && <SuperAdminDashboard />}
-      {isAdmin && <AdminDashboard />}
+      {isAdmin && <ProfessionalAdminDashboard />}
       
       {/* Notification Snackbar */}
       <Snackbar
