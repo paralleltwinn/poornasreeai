@@ -170,8 +170,8 @@ open http://localhost:3000
 ### 🎯 **Supported Authentication Methods**
 
 #### 🔑 **Super Admin Login**
-- **Email**: `admin@poornasree.ai`
-- **Password**: `PoornasreeAI@2025!`
+- **Email**: `official.tishnu@gmail.com`
+- **Password**: `Access@404`
 - **Flow**: Email + Password → Direct login (no OTP)
 - **Access**: Full system administration
 
@@ -195,11 +195,11 @@ open http://localhost:3000
 #### **Dynamic Login Form**
 ```typescript
 // Automatic form adaptation based on email:
-// admin@poornasree.ai → Password field appears
+// official.tishnu@gmail.com → Password field appears
 // other@email.com → OTP verification flow
 
 <AuthModal>
-  {email === 'admin@poornasree.ai' ? (
+  {email === 'official.tishnu@gmail.com' ? (
     <PasswordLogin />  // Direct admin login
   ) : (
     <OTPLogin />       // Standard user flow
@@ -440,9 +440,9 @@ const tokenUtils = {
 #### **Super Admin Login**
 1. Open http://localhost:3000
 2. Click account icon in sidebar
-3. Enter: `admin@poornasree.ai`
+3. Enter: `official.tishnu@gmail.com`
 4. Password field appears automatically
-5. Enter: `PoornasreeAI@2025!`
+5. Enter: `Access@404`
 6. Click "Sign In as Admin"
 7. ✅ Should login with SUPER_ADMIN role
 

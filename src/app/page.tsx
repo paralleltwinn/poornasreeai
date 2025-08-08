@@ -25,13 +25,17 @@ export default function Home() {
     
     // Add a small delay to ensure auth state is fully updated
     const redirectTimeout = setTimeout(() => {
-      // Open dashboard in new tab for super admin after login
+      // Open dashboard in new tab for admin and super admin after login
       const isSuperAdmin = user?.role === UserRole.SUPER_ADMIN || 
                           user?.role?.toString().toUpperCase() === 'SUPER_ADMIN' ||
                           user?.role?.toString().toLowerCase() === 'super_admin';
                           
-      if (isAuthenticated && isSuperAdmin) {
-        console.log('Opening dashboard in new tab for super admin...');
+      const isAdmin = user?.role === UserRole.ADMIN || 
+                     user?.role?.toString().toUpperCase() === 'ADMIN' ||
+                     user?.role?.toString().toLowerCase() === 'admin';
+                          
+      if (isAuthenticated && (isSuperAdmin || isAdmin)) {
+        console.log('Opening dashboard in new tab for admin/super admin...');
         window.open('/dashboard', '_blank');
       }
     }, 100);

@@ -2,16 +2,20 @@
 
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { UserRole } from '@/types/auth';
+import { Alert, Snackbar } from '@mui/material';
 
-// Import dashboard component
+// Import dashboard components
 import SuperAdminDashboard from '@/components/dashboard/SuperAdminDashboard';
+import AdminDashboard from '@/components/dashboard/AdminDashboard';
 
 export default function DashboardPage() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
     // Don't do anything while still loading auth state
@@ -28,19 +32,77 @@ export default function DashboardPage() {
       return;
     }
 
-    // Only super admins can access dashboard (handle case variations)
+    // Check if user has admin privileges (ADMIN or SUPER_ADMIN)
     const isSuperAdmin = user?.role === UserRole.SUPER_ADMIN || 
                         user?.role?.toString().toUpperCase() === 'SUPER_ADMIN' ||
                         user?.role?.toString().toLowerCase() === 'super_admin';
                         
-    if (!isSuperAdmin) {
-      console.log('Not super admin, role:', user?.role, 'redirecting to home');
+    const isAdmin = user?.role === UserRole.ADMIN || 
+                   user?.role?.toString().toUpperCase() === 'ADMIN' ||
+                   user?.role?.toString().toLowerCase() === 'admin';
+                        
+    if (!isSuperAdmin && !isAdmin) {
+      console.log('Not admin or super admin, role:', user?.role, 'redirecting to home');
       router.push('/');
       return;
     }
     
-    console.log('Super admin access granted');
-  }, [isAuthenticated, user, router, isLoading]);
+    console.log('Admin access granted, role:', user?.role);
+    
+    // Check for email action parameters
+    const applicationId = searchParams.get('application_id');
+    const action = searchParams.get('action');
+    
+    if (applicationId && action && (action === 'approve' || action === 'reject')) {
+      handleEmailAction(applicationId, action);
+    }
+  }, [isAuthenticated, user, router, isLoading, searchParams]);
+
+  const handleEmailAction = async (applicationId: string, action: 'approve' | 'reject') => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      
+      let response;
+      if (action === 'approve') {
+        response = await fetch(`http://localhost:8000/api/v1/admin/engineers/${applicationId}/approve`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+      } else {
+        response = await fetch(`http://localhost:8000/api/v1/admin/engineers/${applicationId}/reject`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ reason: "Application reviewed and rejected via email link" }),
+        });
+      }
+
+      if (response.ok) {
+        setNotification({ 
+          message: `Engineer application ${action}d successfully!`, 
+          type: 'success' 
+        });
+        // Remove URL parameters after successful action
+        router.replace('/dashboard');
+      } else {
+        setNotification({ 
+          message: `Failed to ${action} engineer application`, 
+          type: 'error' 
+        });
+      }
+    } catch (error) {
+      console.error(`Failed to ${action} engineer:`, error);
+      setNotification({ 
+        message: `Error occurred while ${action}ing application`, 
+        type: 'error' 
+      });
+    }
+  };
 
   // Show loading while auth state is being determined
   if (isLoading) {
@@ -58,7 +120,11 @@ export default function DashboardPage() {
                       user?.role?.toString().toUpperCase() === 'SUPER_ADMIN' ||
                       user?.role?.toString().toLowerCase() === 'super_admin';
                       
-  if (!isAuthenticated || !isSuperAdmin) {
+  const isAdmin = user?.role === UserRole.ADMIN || 
+                 user?.role?.toString().toUpperCase() === 'ADMIN' ||
+                 user?.role?.toString().toLowerCase() === 'admin';
+                      
+  if (!isAuthenticated || (!isSuperAdmin && !isAdmin)) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -69,5 +135,27 @@ export default function DashboardPage() {
     );
   }
 
-  return <SuperAdminDashboard />;
+  // Render different dashboards based on user role
+  return (
+    <>
+      {isSuperAdmin && <SuperAdminDashboard />}
+      {isAdmin && <AdminDashboard />}
+      
+      {/* Notification Snackbar */}
+      <Snackbar
+        open={!!notification}
+        autoHideDuration={6000}
+        onClose={() => setNotification(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert 
+          onClose={() => setNotification(null)} 
+          severity={notification?.type}
+          sx={{ width: '100%' }}
+        >
+          {notification?.message}
+        </Alert>
+      </Snackbar>
+    </>
+  );
 }

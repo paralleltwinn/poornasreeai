@@ -97,8 +97,8 @@ The app will be available on `http://localhost:3000`
 
 ### **Default Admin User** (if exists in backend)
 ```
-Email: admin@poornasree.ai
-Password: Admin@2024
+Email: official.tishnu@gmail.com
+Password: Access@404
 ```
 
 ### **Test Customer Registration**

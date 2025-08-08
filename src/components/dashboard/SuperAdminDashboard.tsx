@@ -260,12 +260,12 @@ export default function SuperAdminDashboard() {
           <Tabs
             value={currentTab}
             onChange={handleTabChange}
-            aria-label="dashboard tabs"
+            aria-label="super admin dashboard tabs"
             sx={{ borderBottom: 1, borderColor: 'divider' }}
           >
             <Tab 
               icon={<DashboardIcon />} 
-              label="Overview" 
+              label="System Overview" 
               iconPosition="start"
             />
             <Tab 
@@ -279,8 +279,8 @@ export default function SuperAdminDashboard() {
               iconPosition="start"
             />
             <Tab 
-              icon={<PeopleIcon />} 
-              label="Manage Admins" 
+              icon={<SecurityIcon />} 
+              label="Admin Control" 
               iconPosition="start"
             />
           </Tabs>
@@ -294,10 +294,10 @@ export default function SuperAdminDashboard() {
               transition={{ duration: 0.2 }}
             >
               <TabPanel value={currentTab} index={0}>
-                {/* Overview Tab */}
+                {/* System Overview Tab */}
                 <Box sx={{ p: 3 }}>
                   <Typography variant="h5" gutterBottom sx={{ fontWeight: 600, mb: 3 }}>
-                    System Overview
+                    System Overview - Super Admin Access
                   </Typography>
                   
                   <Grid container spacing={3}>
@@ -351,6 +351,49 @@ export default function SuperAdminDashboard() {
                         </CardContent>
                       </Card>
                     </Grid>
+
+                    <Grid item xs={12}>
+                      <Card elevation={1} sx={{ bgcolor: 'primary.main', color: 'white' }}>
+                        <CardContent>
+                          <Typography variant="h6" gutterBottom sx={{ color: 'white' }}>
+                            Super Admin Privileges
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)' }}>
+                            You have exclusive access to admin management features. Only super admins can:
+                          </Typography>
+                          <List sx={{ color: 'white' }}>
+                            <ListItem sx={{ pl: 0 }}>
+                              <ListItemIcon sx={{ color: 'white', minWidth: 32 }}>•</ListItemIcon>
+                              <ListItemText 
+                                primary="Create new admin accounts"
+                                primaryTypographyProps={{ color: 'white' }}
+                              />
+                            </ListItem>
+                            <ListItem sx={{ pl: 0 }}>
+                              <ListItemIcon sx={{ color: 'white', minWidth: 32 }}>•</ListItemIcon>
+                              <ListItemText 
+                                primary="Modify admin permissions and roles"
+                                primaryTypographyProps={{ color: 'white' }}
+                              />
+                            </ListItem>
+                            <ListItem sx={{ pl: 0 }}>
+                              <ListItemIcon sx={{ color: 'white', minWidth: 32 }}>•</ListItemIcon>
+                              <ListItemText 
+                                primary="View and manage all admin accounts"
+                                primaryTypographyProps={{ color: 'white' }}
+                              />
+                            </ListItem>
+                            <ListItem sx={{ pl: 0 }}>
+                              <ListItemIcon sx={{ color: 'white', minWidth: 32 }}>•</ListItemIcon>
+                              <ListItemText 
+                                primary="Access complete system statistics and logs"
+                                primaryTypographyProps={{ color: 'white' }}
+                              />
+                            </ListItem>
+                          </List>
+                        </CardContent>
+                      </Card>
+                    </Grid>
                   </Grid>
                 </Box>
               </TabPanel>
@@ -361,13 +404,29 @@ export default function SuperAdminDashboard() {
               </TabPanel>
 
               <TabPanel value={currentTab} index={2}>
-                {/* Add Admin Tab */}
-                <AddAdminForm onSuccess={fetchDashboardStats} />
+                {/* Add Admin Tab - SUPER ADMIN ONLY */}
+                <Box sx={{ p: 3 }}>
+                  <Typography variant="h5" gutterBottom sx={{ fontWeight: 600, mb: 2 }}>
+                    Add New Admin Account
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                    Super Admin Exclusive: Create new administrator accounts with specific permissions.
+                  </Typography>
+                  <AddAdminForm onSuccess={fetchDashboardStats} />
+                </Box>
               </TabPanel>
 
               <TabPanel value={currentTab} index={3}>
-                {/* Manage Admins Tab */}
-                <AdminList onRefresh={fetchDashboardStats} />
+                {/* Admin Control Tab - SUPER ADMIN ONLY */}
+                <Box sx={{ p: 3 }}>
+                  <Typography variant="h5" gutterBottom sx={{ fontWeight: 600, mb: 2 }}>
+                    Admin Control Panel
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                    Super Admin Exclusive: Manage all administrator accounts, modify permissions, and control access levels.
+                  </Typography>
+                  <AdminList onRefresh={fetchDashboardStats} />
+                </Box>
               </TabPanel>
             </motion.div>
           </AnimatePresence>

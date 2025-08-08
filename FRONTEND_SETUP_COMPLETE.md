@@ -47,7 +47,7 @@
 
 ### **Backend Integration**
 - 🔗 **API Connection**: http://localhost:8000
-- 🔑 **Super Admin**: `admin@poornasree.ai / PoornasreeAI@2025!`
+- 🔑 **Super Admin**: `official.tishnu@gmail.com / Access@404`
 - 📧 **OTP System**: Email verification working
 - 👥 **User Roles**: All 4 roles supported
 
@@ -73,7 +73,7 @@ python main.py
 ### **Test Authentication**
 1. Open http://localhost:3000
 2. Click account icon in sidebar
-3. Test super admin: `admin@poornasree.ai / PoornasreeAI@2025!`
+3. Test super admin: `official.tishnu@gmail.com / Access@404`
 4. Test customer registration with OTP
 5. Test engineer application workflow
 

@@ -131,12 +131,16 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
 
   const handleAuthClick = () => {
     if (isAuthenticated) {
-      // If user is super admin, open dashboard in new tab
       const isSuperAdmin = user?.role === UserRole.SUPER_ADMIN || 
                           user?.role?.toString().toUpperCase() === 'SUPER_ADMIN' ||
                           user?.role?.toString().toLowerCase() === 'super_admin';
                           
-      if (isSuperAdmin) {
+      const isAdmin = user?.role === UserRole.ADMIN || 
+                     user?.role?.toString().toUpperCase() === 'ADMIN' ||
+                     user?.role?.toString().toLowerCase() === 'admin';
+                          
+      if (isSuperAdmin || isAdmin) {
+        // Open dashboard in new tab for admins and super admins
         window.open('/dashboard', '_blank');
       } else {
         // For other users, logout
@@ -527,12 +531,20 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
             user?.role?.toString().toLowerCase() === 'super_admin'
           );
           
+          const isAdmin = isAuthenticated && (
+            user?.role === UserRole.ADMIN || 
+            user?.role?.toString().toUpperCase() === 'ADMIN' ||
+            user?.role?.toString().toLowerCase() === 'admin'
+          );
+          
           return (
             <Tooltip 
               title={
                 isAuthenticated 
                   ? isSuperAdmin 
-                    ? "Open Dashboard" 
+                    ? "Open Super Admin Dashboard" 
+                    : isAdmin
+                    ? "Open Admin Dashboard"
                     : "Logout"
                   : "Sign In"
               }
@@ -555,7 +567,17 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
               >
                 {!(isExpanded || isMobile) ? (
                   // Collapsed state - show appropriate icon
-                  <Avatar sx={{ width: 32, height: 32, bgcolor: isAuthenticated ? 'secondary.main' : 'primary.main' }}>
+                  <Avatar sx={{ 
+                    width: 32, 
+                    height: 32, 
+                    bgcolor: isAuthenticated 
+                      ? isSuperAdmin 
+                        ? 'primary.main' 
+                        : isAdmin 
+                        ? 'secondary.main'
+                        : 'grey.500'
+                      : 'primary.main' 
+                  }}>
                     {isAuthenticated ? (
                       <PersonIcon fontSize="small" />
                     ) : (
@@ -582,7 +604,17 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
                         flexShrink: 0,
                       }}
                     >
-                      <Avatar sx={{ width: 32, height: 32, bgcolor: isAuthenticated ? 'secondary.main' : 'primary.main' }}>
+                      <Avatar sx={{ 
+                        width: 32, 
+                        height: 32, 
+                        bgcolor: isAuthenticated 
+                          ? isSuperAdmin 
+                            ? 'primary.main' 
+                            : isAdmin 
+                            ? 'secondary.main'
+                            : 'grey.500'
+                          : 'primary.main' 
+                      }}>
                         {isAuthenticated ? (
                           <PersonIcon fontSize="small" />
                         ) : (
@@ -619,6 +651,7 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
                               <Chip 
                                 label={user?.role || 'USER'} 
                                 size="small" 
+                                color={isSuperAdmin ? 'primary' : isAdmin ? 'secondary' : 'default'}
                                 sx={{ 
                                   height: 16, 
                                   fontSize: '0.65rem',
@@ -626,7 +659,7 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
                                 }} 
                               />
                               {/* Show different icon based on user role */}
-                              {isSuperAdmin ? (
+                              {isSuperAdmin || isAdmin ? (
                                 <SettingsIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
                               ) : (
                                 <LogoutIcon sx={{ fontSize: 14, color: 'text.secondary' }} />

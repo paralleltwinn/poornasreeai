@@ -7,9 +7,9 @@ Your frontend authentication system has been updated to support super admin logi
 ### 🎯 **Super Admin Login Process**
 
 1. **Open Authentication Modal** - Click the account button in the sidebar
-2. **Enter Admin Email** - Type: `admin@poornasree.ai`
+2. **Enter Admin Email** - Type: `official.tishnu@gmail.com`
 3. **Password Field Appears** - The form will automatically show a password field
-4. **Enter Password** - Type: `PoornasreeAI@2025!` (from your .env file)
+4. **Enter Password** - Type: `Access@404` (from your .env file)
 5. **Click "Sign In as Admin"** - Button text changes for admin login
 6. **Instant Access** - Direct login without OTP verification
 
@@ -21,7 +21,7 @@ Your frontend authentication system has been updated to support super admin logi
 
 #### Frontend Logic:
 ```typescript
-// When email is admin@poornasree.ai:
+// When email is official.tishnu@gmail.com:
 // ✅ Password field appears
 // ✅ Button becomes "Sign In as Admin"  
 // ✅ OTP/Google options hidden
@@ -36,7 +36,7 @@ Your frontend authentication system has been updated to support super admin logi
 ### 📱 **User Experience**
 
 #### Super Admin Flow:
-1. Enter `admin@poornasree.ai`
+1. Enter `official.tishnu@gmail.com`
 2. Password field automatically appears
 3. Enter admin password
 4. Click "Sign In as Admin"
@@ -59,8 +59,8 @@ Your frontend authentication system has been updated to support super admin logi
 ### 🔑 **Credentials**
 
 From your `.env` configuration:
-- **Email**: `admin@poornasree.ai`
-- **Password**: `PoornasreeAI@2025!`
+- **Email**: `official.tishnu@gmail.com`
+- **Password**: `Access@404`
 
 ### 🚀 **Ready to Test**
 
