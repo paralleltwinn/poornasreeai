@@ -2,10 +2,10 @@
 
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useApiResponse } from '@/hooks/useApiResponse';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
 import { UserRole } from '@/types/auth';
-import { Alert, Snackbar } from '@mui/material';
 import LoadingAnimation from '@/components/LoadingAnimation';
 
 // Import dashboard components
@@ -14,13 +14,18 @@ import ProfessionalAdminDashboard from '@/components/dashboard/ProfessionalAdmin
 
 export default function DashboardPage() {
   const { user, isAuthenticated, isLoading } = useAuth();
+  const { showSuccessMessage, showErrorMessage } = useApiResponse();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const handleEmailAction = useCallback(async (applicationId: string, action: 'approve' | 'reject') => {
     try {
       const token = localStorage.getItem('auth_token');
+      
+      if (!token) {
+        showErrorMessage('Authentication token not found. Please log in again.', 'Authentication Error');
+        return;
+      }
       
       let response;
       if (action === 'approve') {
@@ -43,26 +48,30 @@ export default function DashboardPage() {
       }
 
       if (response.ok) {
-        setNotification({ 
-          message: `Engineer application ${action}d successfully!`, 
-          type: 'success' 
-        });
+        const responseData = await response.json();
+        const message = responseData.message || `Engineer application ${action}d successfully!`;
+        showSuccessMessage(message, 'Action Completed');
         // Remove URL parameters after successful action
         router.replace('/dashboard');
       } else {
-        setNotification({ 
-          message: `Failed to ${action} engineer application`, 
-          type: 'error' 
-        });
+        const errorData = await response.json();
+        const errorMessage = errorData.message || errorData.detail || `Failed to ${action} engineer application`;
+        
+        if (response.status === 401) {
+          showErrorMessage('Session expired. Please log in again.', 'Authentication Error');
+        } else if (response.status === 403) {
+          showErrorMessage('Access denied. Insufficient permissions.', 'Access Denied');
+        } else if (response.status === 404) {
+          showErrorMessage('Application not found. It may have already been processed.', 'Not Found');
+        } else {
+          showErrorMessage(errorMessage, 'Action Failed');
+        }
       }
     } catch (error) {
       console.error(`Failed to ${action} engineer:`, error);
-      setNotification({ 
-        message: `Error occurred while ${action}ing application`, 
-        type: 'error' 
-      });
+      showErrorMessage(`Network error occurred while ${action}ing application`, 'Connection Error');
     }
-  }, [router]);
+  }, [router, showSuccessMessage, showErrorMessage]);
 
   useEffect(() => {
     // Don't do anything while still loading auth state
@@ -80,13 +89,10 @@ export default function DashboardPage() {
     }
 
     // Check if user has admin privileges (ADMIN or SUPER_ADMIN)
-    const isSuperAdmin = user?.role === UserRole.SUPER_ADMIN || 
-                        user?.role?.toString().toUpperCase() === 'SUPER_ADMIN' ||
-                        user?.role?.toString().toLowerCase() === 'super_admin';
-                        
-    const isAdmin = user?.role === UserRole.ADMIN || 
-                   user?.role?.toString().toUpperCase() === 'ADMIN' ||
-                   user?.role?.toString().toLowerCase() === 'admin';
+    // Handle both uppercase and lowercase role values from backend
+    const userRoleStr = user?.role?.toString().toLowerCase();
+    const isSuperAdmin = userRoleStr === 'super_admin';
+    const isAdmin = userRoleStr === 'admin';
                         
     if (!isSuperAdmin && !isAdmin) {
       console.log('Not admin or super admin, role:', user?.role, 'redirecting to home');
@@ -116,13 +122,10 @@ export default function DashboardPage() {
     );
   }
 
-  const isSuperAdmin = user?.role === UserRole.SUPER_ADMIN || 
-                      user?.role?.toString().toUpperCase() === 'SUPER_ADMIN' ||
-                      user?.role?.toString().toLowerCase() === 'super_admin';
-                      
-  const isAdmin = user?.role === UserRole.ADMIN || 
-                 user?.role?.toString().toUpperCase() === 'ADMIN' ||
-                 user?.role?.toString().toLowerCase() === 'admin';
+  // Handle both uppercase and lowercase role values from backend
+  const userRoleStr = user?.role?.toString().toLowerCase();
+  const isSuperAdmin = userRoleStr === 'super_admin';
+  const isAdmin = userRoleStr === 'admin';
                       
   if (!isAuthenticated || (!isSuperAdmin && !isAdmin)) {
     return (
@@ -139,22 +142,6 @@ export default function DashboardPage() {
     <>
       {isSuperAdmin && <SuperAdminDashboard />}
       {isAdmin && <ProfessionalAdminDashboard />}
-      
-      {/* Notification Snackbar */}
-      <Snackbar
-        open={!!notification}
-        autoHideDuration={6000}
-        onClose={() => setNotification(null)}
-        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-      >
-        <Alert 
-          onClose={() => setNotification(null)} 
-          severity={notification?.type}
-          sx={{ width: '100%' }}
-        >
-          {notification?.message}
-        </Alert>
-      </Snackbar>
     </>
   );
 }

@@ -83,8 +83,9 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expandedItems, setExpandedItems] = useState<string[]>(['dashboard']);
 
-  const isSuperAdmin = user?.role === UserRole.SUPER_ADMIN || 
-                      user?.role?.toString().toUpperCase() === 'SUPER_ADMIN';
+  // Handle both uppercase and lowercase role values from backend
+  const userRoleStr = user?.role?.toString().toLowerCase();
+  const isSuperAdmin = userRoleStr === 'super_admin';
 
   // Calculate badge numbers from stats
   const pendingCount = stats?.pending_engineers || pendingApplications || 0;

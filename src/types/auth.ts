@@ -8,19 +8,19 @@
  */
 
 export enum UserRole {
-  SUPER_ADMIN = 'SUPER_ADMIN',
-  ADMIN = 'ADMIN',
-  ENGINEER = 'ENGINEER',
-  CUSTOMER = 'CUSTOMER'
+  SUPER_ADMIN = 'super_admin',
+  ADMIN = 'admin',
+  ENGINEER = 'engineer',
+  CUSTOMER = 'customer'
 }
 
 export enum UserStatus {
-  PENDING = 'PENDING',
-  APPROVED = 'APPROVED', 
-  REJECTED = 'REJECTED',
-  ACTIVE = 'ACTIVE',
-  INACTIVE = 'INACTIVE',
-  SUSPENDED = 'SUSPENDED'
+  PENDING = 'pending',
+  APPROVED = 'approved', 
+  REJECTED = 'rejected',
+  ACTIVE = 'active',
+  INACTIVE = 'inactive',
+  SUSPENDED = 'suspended'
 }
 
 export interface User {

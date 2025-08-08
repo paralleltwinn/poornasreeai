@@ -30,6 +30,7 @@ import {
   Description as DescriptionIcon,
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
+import LoadingAnimation from '../LoadingAnimation';
 
 interface PendingEngineer {
   id: number;
@@ -355,7 +356,7 @@ export const EngineerApplicationCard: React.FC<EngineerApplicationCardProps> = (
               <Button
                 variant="outlined"
                 color="error"
-                startIcon={<CancelIcon />}
+                startIcon={isLoading ? <LoadingAnimation size={16} /> : <CancelIcon />}
                 onClick={() => onAction(engineer.id, 'reject')}
                 disabled={isLoading}
                 sx={{ 
@@ -370,7 +371,7 @@ export const EngineerApplicationCard: React.FC<EngineerApplicationCardProps> = (
               <Button
                 variant="contained"
                 color="success"
-                startIcon={<CheckCircleIcon />}
+                startIcon={isLoading ? <LoadingAnimation size={16} /> : <CheckCircleIcon />}
                 onClick={() => onAction(engineer.id, 'approve')}
                 disabled={isLoading}
                 sx={{ 

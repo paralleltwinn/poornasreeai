@@ -8,6 +8,7 @@ import {
   alpha,
 } from '@mui/material';
 import { AdminSidebar } from '@/components/shared/AdminSidebar';
+import { useApiResponse } from '@/hooks/useApiResponse';
 
 // Dashboard Views
 import {
@@ -37,6 +38,7 @@ interface DashboardStats {
 
 export default function ProfessionalAdminDashboard() {
   const theme = useTheme();
+  const { showErrorMessage, showWarningMessage } = useApiResponse();
   const [currentView, setCurrentView] = useState('dashboard');
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -46,7 +48,10 @@ export default function ProfessionalAdminDashboard() {
   const fetchPendingCount = useCallback(async () => {
     try {
       const token = localStorage.getItem('auth_token');
-      if (!token) return;
+      if (!token) {
+        showWarningMessage('Authentication token not found', 'Warning');
+        return;
+      }
 
       const response = await fetch('http://localhost:8000/api/v1/admin/engineers/pending', {
         headers: {
@@ -67,22 +72,32 @@ export default function ProfessionalAdminDashboard() {
         
         setRealTimePendingCount(pendingCount);
         
-        // Also update the stats object if it exists
-        if (stats) {
-          setStats(prev => prev ? { ...prev, pending_engineers: pendingCount } : null);
+        // Update stats only if the count has changed
+        setStats(prev => prev ? { ...prev, pending_engineers: pendingCount } : prev);
+      } else {
+        const errorData = await response.json();
+        console.error('Failed to fetch pending count:', errorData);
+        if (response.status === 401) {
+          showErrorMessage('Session expired. Please log in again.', 'Authentication Error');
+        } else {
+          showWarningMessage('Failed to update pending applications count', 'Update Warning');
         }
       }
     } catch (error) {
       console.error('Failed to fetch pending count:', error);
+      // Don't show error for this background operation unless it's critical
     }
-  }, [stats]);
+  }, [showErrorMessage, showWarningMessage]); // Remove stats dependency to prevent infinite loop
 
   // Fetch dashboard statistics
   const fetchStats = useCallback(async () => {
     try {
       setIsLoading(true);
       const token = localStorage.getItem('auth_token');
-      if (!token) throw new Error('No authentication token found');
+      if (!token) {
+        showErrorMessage('Authentication token not found. Please log in again.', 'Authentication Error');
+        return;
+      }
 
       // For Super Admin, use the dashboard endpoint
       const response = await fetch('http://localhost:8000/api/v1/admin/dashboard', {
@@ -98,25 +113,33 @@ export default function ProfessionalAdminDashboard() {
         console.log('Dashboard stats updated:', data.stats);
       } else {
         // Fallback to admin stats endpoint
-        const fallbackResponse = await fetch('http://localhost:8000/api/v1/admin/stats', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-        
-        const fallbackData = await fallbackResponse.json();
-        if (fallbackResponse.ok && fallbackData.success) {
-          setStats(fallbackData.stats);
-          console.log('Admin stats updated:', fallbackData.stats);
+        try {
+          const fallbackResponse = await fetch('http://localhost:8000/api/v1/admin/stats', {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+          
+          const fallbackData = await fallbackResponse.json();
+          if (fallbackResponse.ok && fallbackData.success) {
+            setStats(fallbackData.stats);
+            console.log('Admin stats updated:', fallbackData.stats);
+          } else {
+            throw new Error(fallbackData.message || 'Failed to load statistics');
+          }
+        } catch (fallbackError) {
+          console.error('Fallback stats fetch failed:', fallbackError);
+          showErrorMessage('Failed to load dashboard statistics', 'Dashboard Error');
         }
       }
     } catch (error) {
       console.error('Failed to fetch dashboard stats:', error);
+      showErrorMessage('Network error while loading dashboard', 'Connection Error');
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [showErrorMessage]);
 
   useEffect(() => {
     fetchStats();
@@ -128,19 +151,24 @@ export default function ProfessionalAdminDashboard() {
     }, 30000); // 30 seconds
 
     return () => clearInterval(interval);
-  }, [fetchStats, fetchPendingCount]);
+  }, []); // Empty dependency array to run only once on mount
 
-  // Sync realTimePendingCount with stats object
-  useEffect(() => {
-    if (realTimePendingCount !== undefined && stats) {
-      setStats(prev => prev ? { ...prev, pending_engineers: realTimePendingCount } : null);
-    }
-  }, [realTimePendingCount, stats]);
+  // Remove the problematic useEffect that was causing infinite updates
+  // useEffect(() => {
+  //   if (realTimePendingCount !== undefined && stats) {
+  //     setStats(prev => prev ? { ...prev, pending_engineers: realTimePendingCount } : null);
+  //   }
+  // }, [realTimePendingCount, stats]);
 
   // Combined refresh function
   const handleRefresh = useCallback(async () => {
-    await Promise.all([fetchStats(), fetchPendingCount()]);
-  }, [fetchStats, fetchPendingCount]);
+    setIsLoading(true);
+    try {
+      await Promise.all([fetchStats(), fetchPendingCount()]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []); // Empty dependency array since fetchStats and fetchPendingCount are stable
 
   const renderCurrentView = () => {
     const commonProps = {

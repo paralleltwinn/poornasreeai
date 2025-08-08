@@ -131,13 +131,10 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
 
   const handleAuthClick = () => {
     if (isAuthenticated) {
-      const isSuperAdmin = user?.role === UserRole.SUPER_ADMIN || 
-                          user?.role?.toString().toUpperCase() === 'SUPER_ADMIN' ||
-                          user?.role?.toString().toLowerCase() === 'super_admin';
-                          
-      const isAdmin = user?.role === UserRole.ADMIN || 
-                     user?.role?.toString().toUpperCase() === 'ADMIN' ||
-                     user?.role?.toString().toLowerCase() === 'admin';
+      // Handle both uppercase and lowercase role values from backend
+      const userRoleStr = user?.role?.toString().toLowerCase();
+      const isSuperAdmin = userRoleStr === 'super_admin';
+      const isAdmin = userRoleStr === 'admin';
                           
       if (isSuperAdmin || isAdmin) {
         // Open dashboard in new tab for admins and super admins
@@ -525,17 +522,10 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
       {/* User Profile / Authentication */}
       <Box sx={{ p: 1 }}>
         {(() => {
-          const isSuperAdmin = isAuthenticated && (
-            user?.role === UserRole.SUPER_ADMIN || 
-            user?.role?.toString().toUpperCase() === 'SUPER_ADMIN' ||
-            user?.role?.toString().toLowerCase() === 'super_admin'
-          );
-          
-          const isAdmin = isAuthenticated && (
-            user?.role === UserRole.ADMIN || 
-            user?.role?.toString().toUpperCase() === 'ADMIN' ||
-            user?.role?.toString().toLowerCase() === 'admin'
-          );
+          // Handle both uppercase and lowercase role values from backend
+          const userRoleStr = user?.role?.toString().toLowerCase();
+          const isSuperAdmin = isAuthenticated && userRoleStr === 'super_admin';
+          const isAdmin = isAuthenticated && userRoleStr === 'admin';
           
           return (
             <Tooltip 

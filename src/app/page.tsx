@@ -18,20 +18,15 @@ export default function Home() {
       userRole: user?.role, 
       userRoleEnum: UserRole.SUPER_ADMIN,
       isEqual: user?.role === UserRole.SUPER_ADMIN,
-      roleUpperCase: user?.role?.toString().toUpperCase(),
-      isEqualUpperCase: user?.role?.toString().toUpperCase() === 'SUPER_ADMIN'
+      roleString: user?.role?.toString().toLowerCase()
     });
     
     // Add a small delay to ensure auth state is fully updated
     const redirectTimeout = setTimeout(() => {
-      // Open dashboard in new tab for admin and super admin after login
-      const isSuperAdmin = user?.role === UserRole.SUPER_ADMIN || 
-                          user?.role?.toString().toUpperCase() === 'SUPER_ADMIN' ||
-                          user?.role?.toString().toLowerCase() === 'super_admin';
-                          
-      const isAdmin = user?.role === UserRole.ADMIN || 
-                     user?.role?.toString().toUpperCase() === 'ADMIN' ||
-                     user?.role?.toString().toLowerCase() === 'admin';
+      // Handle both uppercase and lowercase role values from backend
+      const userRoleStr = user?.role?.toString().toLowerCase();
+      const isSuperAdmin = userRoleStr === 'super_admin';
+      const isAdmin = userRoleStr === 'admin';
                           
       if (isAuthenticated && (isSuperAdmin || isAdmin)) {
         console.log('Opening dashboard in new tab for admin/super admin...');

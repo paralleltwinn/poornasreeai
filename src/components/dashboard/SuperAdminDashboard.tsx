@@ -36,6 +36,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { useAuth } from '@/contexts/AuthContext';
+import { useApiResponse } from '@/hooks/useApiResponse';
 import ProfileUpdateForm from '@/components/dashboard/ProfileUpdateForm';
 import AddAdminForm from '@/components/dashboard/AddAdminForm';
 import AdminList from '@/components/dashboard/AdminList';
@@ -75,6 +76,7 @@ interface DashboardStats {
 
 export default function SuperAdminDashboard() {
   const { user, logout } = useAuth();
+  const { showErrorMessage, showWarningMessage } = useApiResponse();
   const [currentTab, setCurrentTab] = useState(0);
   const [stats, setStats] = useState<DashboardStats>({
     total_users: 0,
@@ -97,6 +99,11 @@ export default function SuperAdminDashboard() {
       const token = localStorage.getItem('auth_token');
       console.log('Fetching dashboard stats with token:', token ? 'Token present' : 'No token');
       
+      if (!token) {
+        showErrorMessage('Authentication token not found. Please log in again.', 'Authentication Error');
+        return;
+      }
+      
       const response = await fetch('http://localhost:8000/api/v1/admin/dashboard', {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -113,9 +120,19 @@ export default function SuperAdminDashboard() {
         setStats(responseData.stats);
       } else {
         console.error('Dashboard API error:', responseData);
+        const errorMessage = responseData.message || responseData.detail || 'Failed to load dashboard statistics';
+        
+        if (response.status === 401) {
+          showErrorMessage('Session expired. Please log in again.', 'Authentication Error');
+        } else if (response.status === 403) {
+          showErrorMessage('Access denied. Insufficient permissions.', 'Access Denied');
+        } else {
+          showErrorMessage(errorMessage, 'Dashboard Error');
+        }
       }
     } catch (error) {
       console.error('Failed to fetch dashboard stats:', error);
+      showErrorMessage('Network error while loading dashboard', 'Connection Error');
     } finally {
       setLoading(false);
     }
