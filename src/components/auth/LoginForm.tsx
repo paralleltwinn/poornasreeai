@@ -32,6 +32,7 @@ import {
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
+import { useApiResponse } from '../../hooks/useApiResponse';
 import { LoginRequest, OTPRequest, OTPVerifyRequest } from '../../types/auth';
 
 interface LoginFormProps {
@@ -43,6 +44,7 @@ type LoginMode = 'password' | 'otp';
 
 const LoginForm: React.FC<LoginFormProps> = ({ onRegisterClick, onSuccess }) => {
   const { login, loginWithOTP, requestOTP, isLoading, clearError } = useAuth();
+  const { handleLoginResponse, handleOtpRequestResponse, showSuccessMessage } = useApiResponse();
   
   // Form state
   const [mode, setMode] = useState<LoginMode>('password');
@@ -76,12 +78,13 @@ const LoginForm: React.FC<LoginFormProps> = ({ onRegisterClick, onSuccess }) => 
   const handlePasswordLogin = async () => {
     if (!isPasswordLoginValid) return;
 
-    try {
+    const result = await handleLoginResponse(async () => {
       const credentials: LoginRequest = { email, password };
-      await login(credentials);
+      return await login(credentials);
+    });
+
+    if (result) {
       onSuccess?.();
-    } catch {
-      // Error is handled by context
     }
   };
 
@@ -89,9 +92,12 @@ const LoginForm: React.FC<LoginFormProps> = ({ onRegisterClick, onSuccess }) => 
   const handleOtpRequest = async () => {
     if (!isOtpRequestValid) return;
 
-    try {
+    const result = await handleOtpRequestResponse(async () => {
       const otpRequest: OTPRequest = { email, purpose: 'login' };
-      await requestOTP(otpRequest);
+      return await requestOTP(otpRequest);
+    });
+
+    if (result) {
       setOtpSent(true);
       
       // Start countdown timer
@@ -105,8 +111,6 @@ const LoginForm: React.FC<LoginFormProps> = ({ onRegisterClick, onSuccess }) => 
           return prev - 1;
         });
       }, 1000);
-    } catch {
-      // Error is handled by context
     }
   };
 
@@ -114,16 +118,17 @@ const LoginForm: React.FC<LoginFormProps> = ({ onRegisterClick, onSuccess }) => 
   const handleOtpVerify = async () => {
     if (!isOtpVerifyValid) return;
 
-    try {
+    const result = await handleLoginResponse(async () => {
       const otpData: OTPVerifyRequest = {
         email,
         otp_code: otpCode,
         purpose: 'login',
       };
-      await loginWithOTP(otpData);
+      return await loginWithOTP(otpData);
+    });
+
+    if (result) {
       onSuccess?.();
-    } catch {
-      // Error is handled by context
     }
   };
 

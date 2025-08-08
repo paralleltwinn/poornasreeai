@@ -32,6 +32,7 @@ import {
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
+import { useApiResponse } from '../../hooks/useApiResponse';
 import { EngineerRegistration } from '../../types/auth';
 import { DEPARTMENTS } from '../../constants/departments';
 import AuthLayout from './AuthLayout';
@@ -48,6 +49,7 @@ const EngineerRegistrationForm: React.FC<EngineerRegistrationProps> = ({
   initialEmail = '',
 }) => {
   const { registerEngineer, isLoading, clearError } = useAuth();
+  const { handleRegistrationResponse } = useApiResponse();
   
   // Debug: Check if DEPARTMENTS is loaded
   console.log('DEPARTMENTS loaded:', DEPARTMENTS);
@@ -102,7 +104,7 @@ const EngineerRegistrationForm: React.FC<EngineerRegistrationProps> = ({
   const handleRegistration = async () => {
     if (!isFormValid) return;
 
-    try {
+    const result = await handleRegistrationResponse(async () => {
       const registrationData: EngineerRegistration = {
         email: formData.email,
         first_name: formData.first_name.trim(),
@@ -113,10 +115,11 @@ const EngineerRegistrationForm: React.FC<EngineerRegistrationProps> = ({
         state: formData.state.trim(),
       };
       
-      await registerEngineer(registrationData);
+      return await registerEngineer(registrationData);
+    }, 'engineer');
+
+    if (result) {
       onSuccess?.();
-    } catch {
-      // Error is handled by context
     }
   };
 

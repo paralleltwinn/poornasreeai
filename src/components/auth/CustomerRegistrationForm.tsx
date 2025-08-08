@@ -32,6 +32,7 @@ import {
 import { motion } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSnackbar } from '../../contexts/SnackbarContext';
+import { useApiResponse } from '../../hooks/useApiResponse';
 import { OTPRequest, CustomerRegistration } from '../../types/auth';
 
 interface CustomerRegistrationProps {
@@ -46,7 +47,8 @@ const CustomerRegistrationForm: React.FC<CustomerRegistrationProps> = ({
   initialEmail = '',
 }) => {
   const { requestOTP, registerCustomer, isLoading, clearError } = useAuth();
-  const { showSuccess, showError, showInfo } = useSnackbar();
+  const { showError } = useSnackbar();
+  const { handleRegistrationResponse, handleOtpRequestResponse } = useApiResponse();
   
   // Form state
   const [step, setStep] = useState(0);
@@ -139,52 +141,39 @@ const CustomerRegistrationForm: React.FC<CustomerRegistrationProps> = ({
       return;
     }
 
-    try {
+    const result = await handleOtpRequestResponse(async () => {
       const otpRequest: OTPRequest = { 
         email: formData.email, 
         purpose: 'registration' 
       };
       console.log('Sending OTP request:', otpRequest);
-      
-      // Show loading info
-      showInfo('Sending verification code...');
-      
-      const success = await requestOTP(otpRequest);
-      
-      if (success) {
-        // Show success message
-        if (step === 0) {
-          showSuccess('Verification code sent to your email successfully!');
-          setStep(1);
-        } else {
-          showSuccess('Verification code resent successfully!');
-        }
-        
-        // Clear any existing timer
-        if (timerRef.current) {
-          clearInterval(timerRef.current);
-        }
-        
-        // Start countdown timer (reset if already running)
-        setOtpTimer(60);
-        timerRef.current = setInterval(() => {
-          setOtpTimer((prev) => {
-            if (prev <= 1) {
-              if (timerRef.current) {
-                clearInterval(timerRef.current);
-                timerRef.current = null;
-              }
-              return 0;
-            }
-            return prev - 1;
-          });
-        }, 1000);
-      } else {
-        showError('Failed to send verification code. Please try again.');
+      return await requestOTP(otpRequest);
+    });
+
+    if (result) {
+      if (step === 0) {
+        setStep(1);
       }
-    } catch (error) {
-      console.error('OTP request failed:', error);
-      showError('Failed to send verification code. Please try again.');
+      
+      // Clear any existing timer
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+      
+      // Start countdown timer (reset if already running)
+      setOtpTimer(60);
+      timerRef.current = setInterval(() => {
+        setOtpTimer((prev) => {
+          if (prev <= 1) {
+            if (timerRef.current) {
+              clearInterval(timerRef.current);
+              timerRef.current = null;
+            }
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
     }
   };
 
@@ -195,7 +184,7 @@ const CustomerRegistrationForm: React.FC<CustomerRegistrationProps> = ({
       return;
     }
 
-    try {
+    const result = await handleRegistrationResponse(async () => {
       const registrationData: CustomerRegistration = {
         email: formData.email,
         first_name: formData.first_name.trim(),
@@ -206,13 +195,11 @@ const CustomerRegistrationForm: React.FC<CustomerRegistrationProps> = ({
         otp_code: formData.otp_code,
       };
       
-      showInfo('Creating your account...');
-      await registerCustomer(registrationData);
-      showSuccess('Account created successfully! Welcome to Poornasree AI!');
+      return await registerCustomer(registrationData);
+    }, 'customer');
+
+    if (result) {
       onSuccess?.();
-    } catch {
-      // Error is handled by context, but we can show additional user-friendly message
-      showError('Failed to create account. Please check your verification code and try again.');
     }
   };
 

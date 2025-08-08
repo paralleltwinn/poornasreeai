@@ -40,6 +40,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { useAuth } from '@/contexts/AuthContext';
+import { useApiResponse } from '@/hooks/useApiResponse';
 import ProfileUpdateForm from '@/components/dashboard/ProfileUpdateForm';
 
 interface TabPanelProps {
@@ -75,18 +76,34 @@ interface DashboardStats {
 
 interface PendingEngineer {
   id: number;
-  first_name: string;
-  last_name: string;
-  email: string;
-  department: string;
-  experience: string;
-  skills: string;
-  portfolio?: string;
+  status: string;
+  review_notes?: string;
+  review_date?: string;
   created_at: string;
+  user: {
+    id: number;
+    email: string;
+    first_name: string;
+    last_name: string;
+    role: string;
+    status: string;
+    is_active: boolean;
+    phone_number?: string;
+    state?: string;
+    department?: string;
+    dealer?: string;
+    machine_model?: string;
+  };
+  department?: string;
+  experience?: string;
+  skills?: string;
+  portfolio?: string;
+  cover_letter?: string;
 }
 
 export default function AdminDashboard() {
   const { user, logout } = useAuth();
+  const { handleAdminActionResponse } = useApiResponse();
   const [currentTab, setCurrentTab] = useState(0);
   const [stats, setStats] = useState<DashboardStats>({
     total_engineers: 0,
@@ -99,7 +116,13 @@ export default function AdminDashboard() {
   const [pendingEngineers, setPendingEngineers] = useState<PendingEngineer[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Debug logging
   useEffect(() => {
+    console.log('PendingEngineers state updated:', pendingEngineers.length, pendingEngineers);
+  }, [pendingEngineers]);
+
+  useEffect(() => {
+    console.log('AdminDashboard: Fetching dashboard data...');
     fetchDashboardStats();
     fetchPendingEngineers();
   }, []);
@@ -142,22 +165,33 @@ export default function AdminDashboard() {
 
       if (response.ok) {
         const data = await response.json();
-        if (data.success) {
+        // The API returns the array directly, not wrapped in a success object
+        if (Array.isArray(data)) {
+          setPendingEngineers(data);
+          console.log('Fetched pending engineers:', data.length);
+        } else if (data.success) {
+          // Fallback for wrapped response format
           setPendingEngineers(data.engineers || []);
         }
+      } else {
+        console.error('Failed to fetch pending engineers:', response.status, response.statusText);
       }
     } catch (error) {
       console.error('Failed to fetch pending engineers:', error);
     }
   };
 
-  const handleEngineerAction = async (engineerId: number, action: 'approve' | 'reject') => {
-    try {
+  const handleEngineerAction = async (applicationId: number, action: 'approve' | 'reject') => {
+    const result = await handleAdminActionResponse(async () => {
       const token = localStorage.getItem('auth_token');
+      
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
       
       let response;
       if (action === 'approve') {
-        response = await fetch(`http://localhost:8000/api/v1/admin/engineers/${engineerId}/approve`, {
+        response = await fetch(`http://localhost:8000/api/v1/admin/engineers/${applicationId}/approve`, {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -165,7 +199,7 @@ export default function AdminDashboard() {
           },
         });
       } else {
-        response = await fetch(`http://localhost:8000/api/v1/admin/engineers/${engineerId}/reject`, {
+        response = await fetch(`http://localhost:8000/api/v1/admin/engineers/${applicationId}/reject`, {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -175,13 +209,18 @@ export default function AdminDashboard() {
         });
       }
 
-      if (response.ok) {
-        // Refresh data after action
-        await fetchDashboardStats();
-        await fetchPendingEngineers();
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Failed to ${action} engineer application`);
       }
-    } catch (error) {
-      console.error(`Failed to ${action} engineer:`, error);
+
+      return await response.json();
+    }, `Engineer application ${action}d`);
+
+    if (result) {
+      // Refresh data after successful action
+      await fetchDashboardStats();
+      await fetchPendingEngineers();
     }
   };
 
@@ -467,42 +506,32 @@ export default function AdminDashboard() {
                     </Paper>
                   ) : (
                     <Grid container spacing={3}>
-                      {pendingEngineers.map((engineer) => (
-                        <Grid item xs={12} md={6} lg={4} key={engineer.id}>
+                      {pendingEngineers.map((application) => (
+                        <Grid item xs={12} md={6} lg={4} key={application.id}>
                           <Card elevation={2}>
                             <CardContent>
                               <Typography variant="h6" gutterBottom>
-                                {engineer.first_name} {engineer.last_name}
+                                {application.user.first_name} {application.user.last_name}
                               </Typography>
                               <Typography variant="body2" color="text.secondary" gutterBottom>
-                                {engineer.email}
+                                {application.user.email}
                               </Typography>
                               <Chip 
-                                label={engineer.department} 
+                                label={application.user.department || 'No Department'} 
                                 size="small" 
                                 sx={{ mb: 2 }}
                               />
                               <Typography variant="body2" paragraph>
-                                <strong>Experience:</strong> {engineer.experience}
+                                <strong>Phone:</strong> {application.user.phone_number || 'Not provided'}
                               </Typography>
                               <Typography variant="body2" paragraph>
-                                <strong>Skills:</strong> {engineer.skills}
+                                <strong>State:</strong> {application.user.state || 'Not provided'}
                               </Typography>
-                              {engineer.portfolio && (
-                                <Typography variant="body2" paragraph>
-                                  <strong>Portfolio:</strong>{' '}
-                                  <a 
-                                    href={engineer.portfolio} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    style={{ color: '#1976d2' }}
-                                  >
-                                    View Portfolio
-                                  </a>
-                                </Typography>
-                              )}
+                              <Typography variant="body2" paragraph>
+                                <strong>Dealer:</strong> {application.user.dealer || 'Not provided'}
+                              </Typography>
                               <Typography variant="caption" color="text.secondary">
-                                Applied: {new Date(engineer.created_at).toLocaleDateString()}
+                                Applied: {new Date(application.created_at).toLocaleDateString()}
                               </Typography>
                               
                               <Box sx={{ mt: 3, display: 'flex', gap: 1 }}>
@@ -511,7 +540,7 @@ export default function AdminDashboard() {
                                   color="success"
                                   size="small"
                                   startIcon={<ApproveIcon />}
-                                  onClick={() => handleEngineerAction(engineer.id, 'approve')}
+                                  onClick={() => handleEngineerAction(application.id, 'approve')}
                                   sx={{ flex: 1 }}
                                 >
                                   Approve
@@ -521,7 +550,7 @@ export default function AdminDashboard() {
                                   color="error"
                                   size="small"
                                   startIcon={<RejectIcon />}
-                                  onClick={() => handleEngineerAction(engineer.id, 'reject')}
+                                  onClick={() => handleEngineerAction(application.id, 'reject')}
                                   sx={{ flex: 1 }}
                                 >
                                   Reject

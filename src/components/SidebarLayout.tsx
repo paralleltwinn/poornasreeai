@@ -645,7 +645,10 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
                         {isAuthenticated ? (
                           <>
                             <Typography variant="body2" sx={{ mb: 0.25, lineHeight: 1.2 }}>
-                              {user?.first_name || 'User'}
+                              {user?.first_name && user?.last_name 
+                                ? `${user.first_name} ${user.last_name}`
+                                : user?.first_name || user?.last_name || 'User'
+                              }
                             </Typography>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                               <Chip 
