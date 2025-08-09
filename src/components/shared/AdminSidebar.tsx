@@ -34,6 +34,8 @@ import {
   Assessment as AssessmentIcon,
   Notifications as NotificationsIcon,
   Security as SecurityIcon,
+  AutoAwesome as AIIcon,
+  ModelTraining as TrainingIcon,
 } from '@mui/icons-material';
 import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
@@ -155,6 +157,19 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           onClick: () => onViewChange('admin-list'),
           roles: [UserRole.SUPER_ADMIN],
           badge: adminCount,
+        },
+      ],
+    },
+    {
+      id: 'ai',
+      label: 'AI',
+      icon: <AIIcon />,
+      children: [
+        {
+          id: 'ai-training',
+          label: 'Training',
+          icon: <TrainingIcon />,
+          onClick: () => onViewChange('ai-training'),
         },
       ],
     },

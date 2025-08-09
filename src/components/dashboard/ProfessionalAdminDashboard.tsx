@@ -21,6 +21,7 @@ import {
   SystemStatus,
   Notifications,
   ProfileSettings,
+  AITraining,
 } from './views';
 
 interface DashboardStats {
@@ -195,6 +196,8 @@ export default function ProfessionalAdminDashboard() {
         return <AddAdmin {...commonProps} />;
       case 'admin-list':
         return <AdminList {...commonProps} />;
+      case 'ai-training':
+        return <AITraining {...commonProps} />;
       case 'system-status':
         return <SystemStatus {...commonProps} />;
       case 'notifications':

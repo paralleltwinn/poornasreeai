@@ -8,3 +8,4 @@ export { default as AdminList } from './AdminList';
 export { default as SystemStatus } from './SystemStatus';
 export { default as Notifications } from './Notifications';
 export { default as ProfileSettings } from './ProfileSettings';
+export { default as AITraining } from './AITraining';
