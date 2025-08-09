@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import {
   Box,
   Card,
@@ -22,12 +22,9 @@ import {
   ListItemIcon,
   ListItemText,
   ListItemSecondaryAction,
-  Divider,
   useTheme,
-  alpha,
   Paper,
   Grid,
-  CircularProgress,
   Checkbox,
 } from '@mui/material';
 import {
@@ -39,16 +36,25 @@ import {
   DataObject as JsonIcon,
   Close as CloseIcon,
   ModelTraining as TrainingIcon,
-  AutoAwesome as AIIcon,
   Refresh as RefreshIcon,
   CheckCircle as SuccessIcon,
   Error as ErrorIcon,
   HourglassEmpty as PendingIcon,
   PlayArrow as PlayIcon,
+  Storage as DatabaseIcon,
+  Warning as WarningIcon,
 } from '@mui/icons-material';
-import { motion } from 'framer-motion';
 import LoadingAnimation from '@/components/LoadingAnimation';
 import { useSnackbar } from '@/contexts/SnackbarContext';
+
+// Essential type definitions
+interface ApiFileResponse {
+  file_id: string;
+  filename: string;
+  size: number;
+  content_type: string;
+  uploaded_at: string;
+}
 
 interface UploadedFile {
   id: string;
@@ -61,21 +67,37 @@ interface UploadedFile {
 interface TrainingJob {
   id: string;
   name: string;
-  status: 'queued' | 'running' | 'completed' | 'failed';
+  status: 'queued' | 'running' | 'completed' | 'failed' | 'initializing';
   progress: number;
   fileCount: number;
   createdBy: string;
   startedAt: string;
   completedAt?: string;
-  estimatedDuration?: string;
+  currentStep?: string;
+  error?: string;
+  trainingSummary?: {
+    filesProcessed?: number;
+    totalContentSize?: number;
+    weaviateConnected?: boolean;
+    geminiConfigured?: boolean;
+    chunksCreated?: number;
+  };
 }
 
-interface TrainingConfig {
-  learningRate: number;
-  batchSize: number;
-  epochs: number;
-  maxTokens: number;
-  temperature: number;
+interface ServiceHealth {
+  service: string;
+  connected?: boolean;
+  configured?: boolean;
+  status?: string;
+  error?: string;
+}
+
+interface SystemHealth {
+  overall_status: string;
+  services: {
+    weaviate?: ServiceHealth;
+    google_ai?: ServiceHealth;
+  };
 }
 
 interface DashboardStats {
@@ -98,16 +120,21 @@ interface AITrainingProps {
   realTimePendingCount?: number;
 }
 
-const AITraining: React.FC<AITrainingProps> = ({
-  stats,
-  isLoading = false,
-  onRefresh,
-  realTimePendingCount,
-}) => {
-  const theme = useTheme();
-  const { showSuccess, showError, showInfo } = useSnackbar();
+// Constants
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
-  // State management
+const getAuthToken = () => {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('auth_token');
+  }
+  return null;
+};
+
+const AITraining: React.FC<AITrainingProps> = () => {
+  const theme = useTheme();
+  const { showSuccess, showError } = useSnackbar();
+
+  // Essential state management
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [trainingJobs, setTrainingJobs] = useState<TrainingJob[]>([]);
@@ -118,50 +145,128 @@ const AITraining: React.FC<AITrainingProps> = ({
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [trainingDialogOpen, setTrainingDialogOpen] = useState(false);
   const [trainingName, setTrainingName] = useState('');
-  // State for bulk operations
   const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
-  const [bulkOperationLoading, setBulkOperationLoading] = useState(false);
   const [fileDeleteLoading, setFileDeleteLoading] = useState<string | null>(null);
-  const [trainingConfig, setTrainingConfig] = useState<TrainingConfig>({
-    learningRate: 0.001,
-    batchSize: 32,
-    epochs: 10,
-    maxTokens: 2048,
-    temperature: 0.7,
-  });
+  const [servicesHealth, setServicesHealth] = useState<SystemHealth | null>(null);
+  const [healthLoading, setHealthLoading] = useState(false);
+  
+  // Enhanced Features State
+  const [filePreviewDialog, setFilePreviewDialog] = useState(false);
+  const [selectedFilePreview, setSelectedFilePreview] = useState<{
+    file_id: string;
+    filename: string;
+    content_preview: string;
+    content_length: number;
+    extraction_method: string;
+    pages_processed?: number;
+    content_quality: string;
+  } | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [processingDetails, setProcessingDetails] = useState<{
+    pdf_files_processed?: number;
+    enhanced_extraction?: boolean;
+    weaviate_integration?: boolean;
+    text_extraction_method?: string;
+  }>({});
+  
+  // Vector Database Management State
+  const [vectorDbStatus, setVectorDbStatus] = useState<{
+    connected: boolean;
+    collections: Array<{
+      name: string;
+      object_count: number;
+      size: string;
+    }>;
+    total_objects: number;
+    total_size: string;
+    last_updated: string;
+    error?: string;
+  } | null>(null);
+  const [vectorDbLoading, setVectorDbLoading] = useState(false);
+  const [clearDatabaseLoading, setClearDatabaseLoading] = useState(false);
+  const [clearCollectionLoading, setClearCollectionLoading] = useState(false);
+  const [vectorDbDialogOpen, setVectorDbDialogOpen] = useState(false);
+  const [confirmClearDialogOpen, setConfirmClearDialogOpen] = useState(false);
+  const [clearAction, setClearAction] = useState<'database' | 'collection' | null>(null);
+  const [selectedCollection, setSelectedCollection] = useState<string>('');
 
-  // API base URL
-  const API_BASE = 'http://127.0.0.1:8000/api/v1';
+  // Refs for proper interval management
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isLoadingJobsRef = useRef(false);
 
-  // Get auth token from localStorage
-  const getAuthToken = () => {
-    return localStorage.getItem('auth_token');
+  // Memoized value to track running jobs
+  const hasRunningJobs = useMemo(() => {
+    return trainingJobs.some(job => job.status === 'running');
+  }, [trainingJobs]);
+
+  // Health status helpers
+  const getStatusColor = (service?: ServiceHealth) => {
+    if (!service) return theme.palette.grey[500];
+    if (service.connected || service.configured) return theme.palette.success.main;
+    if (service.error) return theme.palette.error.main;
+    return theme.palette.warning.main;
   };
 
-  // File icon helper
-  const getFileIcon = (fileType: string) => {
-    if (fileType.includes('pdf')) return <PdfIcon color="error" />;
-    if (fileType.includes('doc') || fileType.includes('docx')) return <DocIcon color="primary" />;
-    if (fileType.includes('json')) return <JsonIcon color="warning" />;
-    return <FileIcon color="action" />;
+  const getStatusIcon = (service?: ServiceHealth) => {
+    if (!service) return <ErrorIcon />;
+    if (service.connected || service.configured) return <SuccessIcon />;
+    if (service.error) return <ErrorIcon />;
+    return <PendingIcon />;
   };
 
-  // Format file size helper
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
+  // System health check
+  const checkSystemHealth = useCallback(async () => {
+    setHealthLoading(true);
+    try {
+      const token = getAuthToken();
+      if (!token) {
+        console.warn('No auth token available for health check');
+        return;
+      }
+
+      const response = await fetch(`${API_BASE}/ai/health`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const healthData = await response.json();
+        setServicesHealth(healthData);
+        console.log('System health check successful:', healthData);
+      } else {
+        console.error('Health check failed:', response.status);
+        setServicesHealth({
+          overall_status: 'error',
+          services: {
+            weaviate: { service: 'Weaviate', status: 'error', error: 'Health check failed' },
+            google_ai: { service: 'Google AI', status: 'error', error: 'Health check failed' }
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Health check error:', error);
+      setServicesHealth({
+        overall_status: 'degraded', 
+        services: {
+          weaviate: { service: 'Weaviate', status: 'error', error: String(error) },
+          google_ai: { service: 'Google AI', status: 'error', error: String(error) }
+        }
+      });
+    } finally {
+      setHealthLoading(false);
+    }
+  }, []);
 
   // Load training jobs
   const loadTrainingJobs = useCallback(async () => {
-    if (isLoadingJobs) {
+    if (isLoadingJobsRef.current) {
       console.log('Skipping loadTrainingJobs - already loading');
-      return; // Prevent multiple simultaneous calls
+      return;
     }
     
+    isLoadingJobsRef.current = true;
     setIsLoadingJobs(true);
     try {
       const token = getAuthToken();
@@ -182,7 +287,6 @@ const AITraining: React.FC<AITrainingProps> = ({
         const data = await response.json();
         console.log('Training jobs response:', data);
         
-        // Handle different response formats
         const jobs = data.jobs || data || [];
         setTrainingJobs(Array.isArray(jobs) ? jobs : []);
         console.log(`Successfully loaded ${jobs.length} training jobs`);
@@ -195,19 +299,24 @@ const AITraining: React.FC<AITrainingProps> = ({
       console.error('Error loading training jobs:', error);
       showError(error instanceof Error ? error.message : 'Failed to load training jobs');
     } finally {
+      isLoadingJobsRef.current = false;
       setIsLoadingJobs(false);
     }
-  }, [isLoadingJobs]); // Add isLoadingJobs as dependency
+  }, [showError]);
 
-  // Load uploaded files from backend
+  // Load uploaded files
   const loadUploadedFiles = useCallback(async () => {
     try {
       const token = getAuthToken();
       if (!token) {
+        console.error('❌ No auth token available');
         showError('Authentication required. Please login again.');
         return;
       }
 
+      console.log('🔄 Fetching training files from:', `${API_BASE}/ai/training-files`);
+      console.log('🔑 Using token:', token.substring(0, 20) + '...');
+      
       const response = await fetch(`${API_BASE}/ai/training-files`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -215,10 +324,31 @@ const AITraining: React.FC<AITrainingProps> = ({
         },
       });
 
+      console.log('📡 Training files response status:', response.status, response.statusText);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('✅ Training files API response:', data);
+        console.log('📊 Response type:', typeof data, 'Is array:', Array.isArray(data));
+        
+        // Handle different response formats from backend
+        let files = [];
         if (data.success && data.files) {
-          const formattedFiles = data.files.map((file: any) => ({
+          files = data.files;
+          console.log('🔍 Found files in data.files:', files.length);
+        } else if (data.files) {
+          files = data.files;
+          console.log('🔍 Found files in data.files (no success field):', files.length);
+        } else if (Array.isArray(data)) {
+          files = data;
+          console.log('🔍 Data is array:', files.length);
+        } else {
+          console.log('❓ Unexpected response format:', data);
+        }
+        
+        if (files && files.length > 0) {
+          console.log('📄 Raw files data:', files);
+          const formattedFiles = files.map((file: ApiFileResponse) => ({
             id: file.file_id,
             name: file.filename,
             size: file.size,
@@ -226,42 +356,65 @@ const AITraining: React.FC<AITrainingProps> = ({
             uploadedAt: file.uploaded_at,
           }));
           setUploadedFiles(formattedFiles);
-          console.log(`Loaded ${formattedFiles.length} uploaded files`);
+          console.log(`✅ Successfully loaded ${formattedFiles.length} uploaded files`);
+          console.log('📁 Formatted files:', formattedFiles);
+        } else {
+          setUploadedFiles([]);
+          console.log('⚠️ No training files found or empty array');
         }
       } else {
-        console.error('Failed to load uploaded files');
+        const errorText = await response.text();
+        console.error('❌ Failed to load uploaded files. Status:', response.status, 'Response:', errorText);
+        
+        if (response.status === 401) {
+          showError('Authentication expired. Please login again.');
+        } else if (response.status === 403) {
+          showError('Access denied. Admin permissions required.');
+        } else {
+          showError('Failed to load training files. Please try again.');
+        }
       }
     } catch (error) {
-      console.error('Error loading uploaded files:', error);
+      console.error('💥 Error loading uploaded files:', error);
+      showError('Network error while loading files. Please check your connection.');
     }
-  }, []);
+  }, [showError]);
 
   // Load data on component mount
   useEffect(() => {
     console.log('AITraining component mounted, loading initial data...');
     loadTrainingJobs();
     loadUploadedFiles();
-  }, []); // Only run once on mount
+    checkSystemHealth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Set up real-time updates for running jobs
   useEffect(() => {
-    const hasRunningJobs = trainingJobs.some(job => job.status === 'running');
+    // Clear any existing interval
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
     
     if (hasRunningJobs) {
       console.log('Setting up interval for running jobs...');
-      const progressInterval = setInterval(() => {
+      pollingIntervalRef.current = setInterval(() => {
         console.log('Refreshing training jobs for running jobs...');
         loadTrainingJobs();
       }, 10000); // Update every 10 seconds
-
-      return () => {
-        console.log('Clearing interval for running jobs...');
-        clearInterval(progressInterval);
-      };
     }
-  }, [trainingJobs.length > 0 && trainingJobs.some(job => job.status === 'running')]);
 
-  // Handle file selection
+    return () => {
+      if (pollingIntervalRef.current) {
+        console.log('Clearing interval for running jobs...');
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
+  }, [hasRunningJobs, loadTrainingJobs]);
+
+  // File handling functions
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
     const validFiles = files.filter(file => {
@@ -289,12 +442,11 @@ const AITraining: React.FC<AITrainingProps> = ({
     setSelectedFiles(prev => [...prev, ...validFiles]);
   };
 
-  // Remove selected file
   const removeSelectedFile = (index: number) => {
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Handle file upload
+  // Enhanced file upload with PDF processing feedback
   const handleUpload = async () => {
     if (selectedFiles.length === 0) {
       showError('Please select files to upload');
@@ -310,18 +462,31 @@ const AITraining: React.FC<AITrainingProps> = ({
         throw new Error('Authentication required. Please login again.');
       }
 
+      // Count file types for enhanced feedback
+      const fileTypeCounts = {
+        pdf: selectedFiles.filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')).length,
+        doc: selectedFiles.filter(f => f.type.includes('word') || f.name.toLowerCase().match(/\.(doc|docx)$/)).length,
+        text: selectedFiles.filter(f => f.type === 'text/plain' || f.name.toLowerCase().endsWith('.txt')).length,
+        json: selectedFiles.filter(f => f.type === 'application/json' || f.name.toLowerCase().endsWith('.json')).length,
+        csv: selectedFiles.filter(f => f.type === 'text/csv' || f.name.toLowerCase().endsWith('.csv')).length,
+      };
+
+      console.log('📊 Uploading file types:', fileTypeCounts);
+
       const formData = new FormData();
       selectedFiles.forEach(file => {
         formData.append('files', file);
       });
 
-      // Simulate upload progress
+      // Progress simulation with enhanced feedback
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => {
           if (prev >= 90) return prev;
-          return prev + Math.random() * 20;
+          return prev + Math.random() * 15;
         });
-      }, 200);
+      }, 300);
+
+      console.log('🚀 Starting enhanced upload with PDF text extraction...');
 
       const response = await fetch(`${API_BASE}/ai/upload-training-data`, {
         method: 'POST',
@@ -336,47 +501,104 @@ const AITraining: React.FC<AITrainingProps> = ({
 
       if (response.ok) {
         const data = await response.json();
-        showSuccess(`Successfully uploaded ${data.files_processed} files (${data.total_size})`);
+        console.log('✅ Enhanced upload response:', data);
         
-        // Track uploaded files if the response includes file information
-        if (data.file_details) {
-          const newUploadedFiles = data.file_details.map((file: any) => ({
-            id: file.file_id,
-            name: file.original_name,
-            size: file.size,
-            type: file.type,
-            uploadedAt: new Date().toISOString(),
-          }));
-          setUploadedFiles(prev => [...prev, ...newUploadedFiles]);
+        // Extract processing details for enhanced feedback
+        const processingInfo = data.processing_details || {};
+        setProcessingDetails(processingInfo);
+        
+        let successMessage = `Successfully uploaded ${data.files_processed || selectedFiles.length} files`;
+        
+        // Add enhanced processing details to success message
+        if (fileTypeCounts.pdf > 0) {
+          successMessage += ` (${fileTypeCounts.pdf} PDF${fileTypeCounts.pdf > 1 ? 's' : ''} with enhanced text extraction)`;
         }
         
+        if (processingInfo.enhanced_extraction) {
+          successMessage += '. Enhanced PDF text extraction completed.';
+        }
+        
+        showSuccess(successMessage);
         setSelectedFiles([]);
         setUploadDialogOpen(false);
         
-        // Refresh training jobs to see updated status
-        await loadTrainingJobs();
+        // Reload files and jobs to update the UI
+        console.log('🔄 Reloading uploaded files after enhanced upload...');
+        await loadUploadedFiles();
+        
+        // If no files loaded immediately, retry after a short delay
+        setTimeout(() => {
+          console.log('⏰ Delayed reload of uploaded files...');
+          loadUploadedFiles();
+        }, 1000);
+        
       } else {
         const errorData = await response.json().catch(() => ({ detail: 'Upload failed' }));
-        throw new Error(errorData.detail || 'Upload failed');
+        throw new Error(errorData.detail || 'Failed to upload files');
       }
     } catch (error) {
-      console.error('Upload error:', error);
-      showError(error instanceof Error ? error.message : 'Upload failed');
+      console.error('❌ Enhanced upload error:', error);
+      showError(error instanceof Error ? error.message : 'Failed to upload files');
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
     }
   };
 
+  // Enhanced file content preview function
+  const handleFilePreview = async (fileId: string, filename: string) => {
+    setPreviewLoading(true);
+    try {
+      const token = getAuthToken();
+      if (!token) {
+        showError('Authentication required. Please login again.');
+        return;
+      }
+
+      const response = await fetch(`${API_BASE}/ai/training-files/${fileId}/preview`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const previewData = await response.json();
+        setSelectedFilePreview({
+          file_id: fileId,
+          filename: filename,
+          content_preview: previewData.content_preview,
+          content_length: previewData.content_length,
+          extraction_method: previewData.extraction_method,
+          pages_processed: previewData.pages_processed,
+          content_quality: previewData.content_quality
+        });
+        setFilePreviewDialog(true);
+      } else {
+        const errorData = await response.json().catch(() => ({ detail: 'Failed to get preview' }));
+        showError(errorData.detail || 'Failed to get file preview');
+      }
+    } catch (error) {
+      console.error('Preview error:', error);
+      showError('Failed to load file preview');
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
   // Start training
-  const startTraining = async () => {
+  const handleStartTraining = async () => {
     if (!trainingName.trim()) {
-      showError('Please enter a training job name');
+      showError('Please enter a training name');
+      return;
+    }
+
+    if (uploadedFiles.length === 0) {
+      showError('Please upload files before starting training');
       return;
     }
 
     setIsTraining(true);
-
     try {
       const token = getAuthToken();
       if (!token) {
@@ -391,45 +613,37 @@ const AITraining: React.FC<AITrainingProps> = ({
         },
         body: JSON.stringify({
           name: trainingName,
-          file_ids: uploadedFiles.map(file => file.id), // Use uploaded file IDs
-          training_config: trainingConfig,
+          file_ids: uploadedFiles.map(f => f.id),
+          config: {
+            learning_rate: 0.001,
+            batch_size: 32,
+            epochs: 10,
+            max_tokens: 1024,
+            temperature: 0.7
+          }
         }),
       });
 
       if (response.ok) {
-        const data = await response.json();
-        showSuccess(`Training job "${data.job_id}" started successfully! Estimated duration: ${data.estimated_duration || '30-60 minutes'}`);
+        showSuccess(`Training job "${trainingName}" started successfully`);
         setTrainingName('');
         setTrainingDialogOpen(false);
         await loadTrainingJobs();
       } else {
-        const errorData = await response.json().catch(() => ({ detail: 'Failed to start training' }));
-        throw new Error(errorData.detail || 'Failed to start training');
+        const errorData = await response.json().catch(() => ({ detail: 'Training start failed' }));
+        throw new Error(errorData.detail || 'Training start failed');
       }
     } catch (error) {
-      console.error('Training error:', error);
+      console.error('Training start error:', error);
       showError(error instanceof Error ? error.message : 'Failed to start training');
     } finally {
       setIsTraining(false);
     }
   };
 
-  // Delete uploaded file with confirmation
-  const deleteUploadedFile = async (fileId: string, fileName: string) => {
-    // Show confirmation dialog
-    const confirmed = window.confirm(
-      `Are you sure you want to delete "${fileName}"?\n\n` +
-      'This will:\n' +
-      '• Remove the file from storage\n' +
-      '• Clean up all vector embeddings in Weaviate\n' +
-      '• Update any affected training jobs\n\n' +
-      'This action cannot be undone.'
-    );
-
-    if (!confirmed) return;
-
+  // Delete file
+  const handleDeleteFile = async (fileId: string) => {
     setFileDeleteLoading(fileId);
-
     try {
       const token = getAuthToken();
       if (!token) {
@@ -445,18 +659,12 @@ const AITraining: React.FC<AITrainingProps> = ({
       });
 
       if (response.ok) {
-        const data = await response.json();
-        showSuccess(`File deleted successfully. ${data.weaviate_cleanup ? 'Weaviate data cleaned up.' : ''} ${data.affected_jobs > 0 ? `${data.affected_jobs} training jobs updated.` : ''}`);
-        
-        // Remove from local state
-        setUploadedFiles(prev => prev.filter(file => file.id !== fileId));
-        setSelectedFileIds(prev => prev.filter(id => id !== fileId));
-        
-        // Refresh training jobs in case they were affected
+        showSuccess('File deleted successfully');
+        await loadUploadedFiles();
         await loadTrainingJobs();
       } else {
-        const errorData = await response.json().catch(() => ({ detail: 'Failed to delete file' }));
-        throw new Error(errorData.detail || 'Failed to delete file');
+        const errorData = await response.json().catch(() => ({ detail: 'Delete failed' }));
+        throw new Error(errorData.detail || 'Delete failed');
       }
     } catch (error) {
       console.error('Delete error:', error);
@@ -467,19 +675,11 @@ const AITraining: React.FC<AITrainingProps> = ({
   };
 
   // Bulk delete files
-  const bulkDeleteFiles = async (fileIds: string[]) => {
-    if (fileIds.length === 0) {
-      showError('No files selected for deletion');
+  const handleBulkDelete = async () => {
+    if (selectedFileIds.length === 0) {
+      showError('Please select files to delete');
       return;
     }
-
-    const confirmed = window.confirm(
-      `Are you sure you want to delete ${fileIds.length} file(s)?\n\n` +
-      'This will remove all selected files and clean up associated data.\n' +
-      'This action cannot be undone.'
-    );
-
-    if (!confirmed) return;
 
     try {
       const token = getAuthToken();
@@ -493,29 +693,17 @@ const AITraining: React.FC<AITrainingProps> = ({
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(fileIds),
+        body: JSON.stringify(selectedFileIds),
       });
 
       if (response.ok) {
-        const data = await response.json();
-        const successCount = data.deleted_files?.length || 0;
-        const failCount = data.failed_files?.length || 0;
-        
-        if (successCount > 0) {
-          showSuccess(`Successfully deleted ${successCount} file(s).${failCount > 0 ? ` ${failCount} file(s) failed to delete.` : ''}`);
-          
-          // Remove successfully deleted files from state
-          const deletedIds = data.deleted_files?.map((f: any) => f.file_id) || [];
-          setUploadedFiles(prev => prev.filter(file => !deletedIds.includes(file.id)));
-          
-          // Refresh training jobs
-          await loadTrainingJobs();
-        } else {
-          throw new Error('No files were deleted successfully');
-        }
+        showSuccess(`Successfully deleted ${selectedFileIds.length} files`);
+        setSelectedFileIds([]);
+        await loadUploadedFiles();
+        await loadTrainingJobs();
       } else {
-        const errorData = await response.json().catch(() => ({ detail: 'Failed to delete files' }));
-        throw new Error(errorData.detail || 'Failed to delete files');
+        const errorData = await response.json().catch(() => ({ detail: 'Bulk delete failed' }));
+        throw new Error(errorData.detail || 'Bulk delete failed');
       }
     } catch (error) {
       console.error('Bulk delete error:', error);
@@ -523,1079 +711,796 @@ const AITraining: React.FC<AITrainingProps> = ({
     }
   };
 
-  // Get status icon
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return <SuccessIcon color="success" />;
-      case 'failed':
-        return <ErrorIcon color="error" />;
-      case 'running':
-        return <CircularProgress size={20} />;
-      default:
-        return <PendingIcon color="warning" />;
+  // =============================================================================
+  // VECTOR DATABASE MANAGEMENT FUNCTIONS
+  // =============================================================================
+
+  // Get vector database status
+  const loadVectorDbStatus = useCallback(async () => {
+    setVectorDbLoading(true);
+    try {
+      const token = getAuthToken();
+      if (!token) {
+        throw new Error('Authentication required. Please login again.');
+      }
+
+      const response = await fetch(`${API_BASE}/ai/vector-database/status`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setVectorDbStatus(data);
+        console.log('✅ Vector database status loaded:', data);
+      } else {
+        const errorData = await response.json().catch(() => ({ detail: 'Failed to load vector database status' }));
+        throw new Error(errorData.detail || 'Failed to load vector database status');
+      }
+    } catch (error) {
+      console.error('Vector database status error:', error);
+      showError(error instanceof Error ? error.message : 'Failed to load vector database status');
+    } finally {
+      setVectorDbLoading(false);
+    }
+  }, [showError]);
+
+  // Clear entire vector database
+  const handleClearDatabase = async () => {
+    setClearDatabaseLoading(true);
+    try {
+      const token = getAuthToken();
+      if (!token) {
+        throw new Error('Authentication required. Please login again.');
+      }
+
+      const response = await fetch(`${API_BASE}/ai/vector-database/clear`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        showSuccess(`Vector database cleared successfully. Deleted ${data.deleted_objects || 0} objects from ${data.deleted_collections?.length || 0} collections.`);
+        await loadVectorDbStatus(); // Refresh status
+        setConfirmClearDialogOpen(false);
+        setClearAction(null);
+      } else {
+        const errorData = await response.json().catch(() => ({ detail: 'Failed to clear vector database' }));
+        throw new Error(errorData.detail || 'Failed to clear vector database');
+      }
+    } catch (error) {
+      console.error('Clear database error:', error);
+      showError(error instanceof Error ? error.message : 'Failed to clear vector database');
+    } finally {
+      setClearDatabaseLoading(false);
     }
   };
 
+  // Clear specific collection
+  const handleClearCollection = async (collectionName: string) => {
+    setClearCollectionLoading(true);
+    try {
+      const token = getAuthToken();
+      if (!token) {
+        throw new Error('Authentication required. Please login again.');
+      }
+
+      const response = await fetch(`${API_BASE}/ai/vector-database/collection/${encodeURIComponent(collectionName)}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        showSuccess(`Collection "${collectionName}" cleared successfully. Deleted ${data.deleted_objects || 0} objects.`);
+        await loadVectorDbStatus(); // Refresh status
+        setConfirmClearDialogOpen(false);
+        setClearAction(null);
+        setSelectedCollection('');
+      } else {
+        const errorData = await response.json().catch(() => ({ detail: 'Failed to clear collection' }));
+        throw new Error(errorData.detail || 'Failed to clear collection');
+      }
+    } catch (error) {
+      console.error('Clear collection error:', error);
+      showError(error instanceof Error ? error.message : 'Failed to clear collection');
+    } finally {
+      setClearCollectionLoading(false);
+    }
+  };
+
+  // Confirm clear action
+  const handleConfirmClear = () => {
+    if (clearAction === 'database') {
+      handleClearDatabase();
+    } else if (clearAction === 'collection' && selectedCollection) {
+      handleClearCollection(selectedCollection);
+    }
+  };
+
+  // File type icon helper
+  const getFileIcon = (type: string) => {
+    if (type.includes('pdf')) return <PdfIcon color="error" />;
+    if (type.includes('word') || type.includes('document')) return <DocIcon color="primary" />;
+    if (type.includes('json')) return <JsonIcon color="warning" />;
+    return <FileIcon />;
+  };
+
+  // Status color helper
+  const getJobStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed': return theme.palette.success.main;
+      case 'failed': return theme.palette.error.main;
+      case 'running': return theme.palette.warning.main;
+      case 'initializing': return theme.palette.info.main;
+      case 'queued': return theme.palette.info.main;
+      default: return theme.palette.grey[500];
+    }
+  };
+
+  // Load vector database status when dialog opens
+  useEffect(() => {
+    if (vectorDbDialogOpen) {
+      loadVectorDbStatus();
+    }
+  }, [vectorDbDialogOpen, loadVectorDbStatus]);
+
   return (
     <Box sx={{ p: 3 }}>
-      {/* Header with System Status */}
-      <Box sx={{ mb: 4 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-          <Box>
-            <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1, display: 'flex', alignItems: 'center' }}>
-              <AIIcon sx={{ mr: 2, color: theme.palette.primary.main }} />
-              AI Training Center
-            </Typography>
-            <Typography variant="body1" color="text.secondary">
-              Upload training data and manage AI model training jobs with Weaviate and Gemini 2.5 Flash
-            </Typography>
+      <Typography variant="h4" sx={{ mb: 3, fontWeight: 600 }}>
+        AI Training Management
+      </Typography>
+
+      {/* System Health Status */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+            <Typography variant="h6">System Health</Typography>
+            <IconButton size="small" onClick={checkSystemHealth} disabled={healthLoading}>
+              {healthLoading ? <LoadingAnimation size={20} /> : <RefreshIcon />}
+            </IconButton>
           </Box>
           
-          {/* System Status Indicators */}
-          <Card variant="outlined" sx={{ minWidth: 300 }}>
-            <CardContent sx={{ py: 2 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 2 }}>
-                🔧 System Status
-              </Typography>
-              <Stack spacing={1}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Box
-                      sx={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: '50%',
-                        bgcolor: theme.palette.success.main,
-                        animation: 'pulse 2s infinite',
-                        '@keyframes pulse': {
-                          '0%': { opacity: 1 },
-                          '50%': { opacity: 0.5 },
-                          '100%': { opacity: 1 }
+          {servicesHealth && (
+            <Grid container spacing={2}>
+              {Object.entries(servicesHealth.services).map(([key, service]) => (
+                <Grid item xs={12} sm={6} key={key}>
+                  <Paper sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+                    {getStatusIcon(service)}
+                    <Box>
+                      <Typography variant="subtitle2">{service?.service || key}</Typography>
+                      <Chip 
+                        label={service?.status || 'unknown'} 
+                        size="small" 
+                        sx={{ 
+                          backgroundColor: getStatusColor(service),
+                          color: 'white',
+                          fontSize: '0.75rem'
+                        }}
+                      />
+                    </Box>
+                  </Paper>
+                </Grid>
+              ))}
+            </Grid>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Action Buttons */}
+      <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
+        <Button
+          variant="contained"
+          startIcon={<UploadIcon />}
+          onClick={() => setUploadDialogOpen(true)}
+        >
+          Upload Training Data
+        </Button>
+        <Button
+          variant="contained"
+          startIcon={<TrainingIcon />}
+          onClick={() => setTrainingDialogOpen(true)}
+          disabled={uploadedFiles.length === 0}
+        >
+          Start Training
+        </Button>
+        <Button
+          variant="outlined"
+          startIcon={<DatabaseIcon />}
+          onClick={() => setVectorDbDialogOpen(true)}
+          sx={{ borderColor: theme.palette.info.main, color: theme.palette.info.main }}
+        >
+          Vector Database
+        </Button>
+        {selectedFileIds.length > 0 && (
+          <Button
+            variant="outlined"
+            color="error"
+            startIcon={<DeleteIcon />}
+            onClick={handleBulkDelete}
+          >
+            Delete Selected ({selectedFileIds.length})
+          </Button>
+        )}
+      </Stack>
+
+      <Grid container spacing={3}>
+        {/* Training Files */}
+        <Grid item xs={12} md={6}>
+          <Card>
+            <CardContent>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h6">
+                  Training Files ({uploadedFiles.length})
+                </Typography>
+                <IconButton size="small" onClick={loadUploadedFiles} title="Refresh files">
+                  <RefreshIcon />
+                </IconButton>
+              </Box>
+              
+              {uploadedFiles.length > 0 && (
+                <Box sx={{ mb: 2 }}>
+                  <Button
+                    size="small"
+                    onClick={() => {
+                      if (selectedFileIds.length === uploadedFiles.length) {
+                        setSelectedFileIds([]);
+                      } else {
+                        setSelectedFileIds(uploadedFiles.map(f => f.id));
+                      }
+                    }}
+                  >
+                    {selectedFileIds.length === uploadedFiles.length ? 'Deselect All' : 'Select All'}
+                  </Button>
+                </Box>
+              )}
+
+              <List>
+                {uploadedFiles.map((file) => (
+                  <ListItem key={file.id} dense>
+                    <Checkbox
+                      checked={selectedFileIds.includes(file.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedFileIds(prev => [...prev, file.id]);
+                        } else {
+                          setSelectedFileIds(prev => prev.filter(id => id !== file.id));
                         }
                       }}
+                      size="small"
                     />
-                    <Typography variant="body2">Weaviate Vector DB</Typography>
-                  </Box>
-                  <Chip label="Online" size="small" color="success" />
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Box
-                      sx={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: '50%',
-                        bgcolor: theme.palette.success.main,
-                        animation: 'pulse 2s infinite',
-                      }}
+                    <ListItemIcon>
+                      {getFileIcon(file.type)}
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={file.name}
+                      secondary={`${(file.size / 1024).toFixed(1)} KB • ${new Date(file.uploadedAt).toLocaleDateString()}`}
                     />
-                    <Typography variant="body2">Gemini 2.5 Flash</Typography>
-                  </Box>
-                  <Chip label="Ready" size="small" color="success" />
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Box
-                      sx={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: '50%',
-                        bgcolor: theme.palette.warning.main,
-                      }}
-                    />
-                    <Typography variant="body2">Training Queue</Typography>
-                  </Box>
-                  <Chip 
-                    label={`${trainingJobs.filter(job => job.status === 'running' || job.status === 'queued').length} Jobs`} 
-                    size="small" 
-                    color={trainingJobs.filter(job => job.status === 'running').length > 0 ? "warning" : "default"} 
-                  />
-                </Box>
-              </Stack>
-            </CardContent>
-          </Card>
-        </Box>
-      </Box>
-
-      {/* Enhanced Quick Stats with Analytics */}
-      <Grid container spacing={2} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={2.4}>
-          <Card sx={{ bgcolor: alpha(theme.palette.primary.main, 0.1), position: 'relative', overflow: 'hidden' }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Box>
-                  <Typography variant="h5" color="primary" sx={{ fontWeight: 'bold' }}>
-                    {trainingJobs.length}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Total Jobs
-                  </Typography>
-                </Box>
-                <TrainingIcon sx={{ fontSize: 40, color: alpha(theme.palette.primary.main, 0.3) }} />
-              </Box>
-              <Box 
-                sx={{ 
-                  position: 'absolute', 
-                  bottom: 0, 
-                  left: 0, 
-                  right: 0, 
-                  height: 4, 
-                  bgcolor: alpha(theme.palette.primary.main, 0.2) 
-                }} 
-              />
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={2.4}>
-          <Card sx={{ bgcolor: alpha(theme.palette.success.main, 0.1), position: 'relative', overflow: 'hidden' }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Box>
-                  <Typography variant="h5" color="success.main" sx={{ fontWeight: 'bold' }}>
-                    {trainingJobs.filter(job => job.status === 'completed').length}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Completed
-                  </Typography>
-                </Box>
-                <SuccessIcon sx={{ fontSize: 40, color: alpha(theme.palette.success.main, 0.3) }} />
-              </Box>
-              <Box 
-                sx={{ 
-                  position: 'absolute', 
-                  bottom: 0, 
-                  left: 0, 
-                  right: 0, 
-                  height: 4, 
-                  bgcolor: alpha(theme.palette.success.main, 0.2) 
-                }} 
-              />
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={2.4}>
-          <Card sx={{ bgcolor: alpha(theme.palette.warning.main, 0.1), position: 'relative', overflow: 'hidden' }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Box>
-                  <Typography variant="h5" color="warning.main" sx={{ fontWeight: 'bold' }}>
-                    {trainingJobs.filter(job => job.status === 'running').length}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Running
-                  </Typography>
-                  {trainingJobs.filter(job => job.status === 'running').length > 0 && (
-                    <Typography variant="caption" color="warning.main" sx={{ fontWeight: 'bold' }}>
-                      LIVE
-                    </Typography>
-                  )}
-                </Box>
-                <Box sx={{ position: 'relative' }}>
-                  <CircularProgress 
-                    size={40} 
-                    color="warning" 
-                    variant={trainingJobs.filter(job => job.status === 'running').length > 0 ? 'indeterminate' : 'determinate'}
-                    value={0}
-                  />
-                </Box>
-              </Box>
-              <Box 
-                sx={{ 
-                  position: 'absolute', 
-                  bottom: 0, 
-                  left: 0, 
-                  right: 0, 
-                  height: 4, 
-                  bgcolor: alpha(theme.palette.warning.main, 0.2) 
-                }} 
-              />
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={2.4}>
-          <Card sx={{ bgcolor: alpha(theme.palette.error.main, 0.1), position: 'relative', overflow: 'hidden' }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Box>
-                  <Typography variant="h5" color="error.main" sx={{ fontWeight: 'bold' }}>
-                    {trainingJobs.filter(job => job.status === 'failed').length}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Failed
-                  </Typography>
-                </Box>
-                <ErrorIcon sx={{ fontSize: 40, color: alpha(theme.palette.error.main, 0.3) }} />
-              </Box>
-              <Box 
-                sx={{ 
-                  position: 'absolute', 
-                  bottom: 0, 
-                  left: 0, 
-                  right: 0, 
-                  height: 4, 
-                  bgcolor: alpha(theme.palette.error.main, 0.2) 
-                }} 
-              />
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={2.4}>
-          <Card sx={{ bgcolor: alpha(theme.palette.info.main, 0.1), position: 'relative', overflow: 'hidden' }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Box>
-                  <Typography variant="h5" color="info.main" sx={{ fontWeight: 'bold' }}>
-                    {uploadedFiles.length}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Data Files
-                  </Typography>
-                  <Typography variant="caption" color="info.main">
-                    {formatFileSize(uploadedFiles.reduce((acc, file) => acc + file.size, 0))}
-                  </Typography>
-                </Box>
-                <FileIcon sx={{ fontSize: 40, color: alpha(theme.palette.info.main, 0.3) }} />
-              </Box>
-              <Box 
-                sx={{ 
-                  position: 'absolute', 
-                  bottom: 0, 
-                  left: 0, 
-                  right: 0, 
-                  height: 4, 
-                  bgcolor: alpha(theme.palette.info.main, 0.2) 
-                }} 
-              />
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-
-      {/* Training Performance Analytics */}
-      {trainingJobs.length > 0 && (
-        <Card sx={{ mb: 4 }}>
-          <CardContent>
-            <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 3 }}>
-              Training Performance Analytics
-            </Typography>
-            
-            <Grid container spacing={3}>
-              {/* Success Rate */}
-              <Grid item xs={12} sm={6} md={3}>
-                <Box sx={{ textAlign: 'center', p: 2 }}>
-                  <Box sx={{ position: 'relative', display: 'inline-flex', mb: 2 }}>
-                    <CircularProgress
-                      variant="determinate"
-                      value={trainingJobs.length > 0 ? (trainingJobs.filter(job => job.status === 'completed').length / trainingJobs.length) * 100 : 0}
-                      size={80}
-                      thickness={4}
-                      sx={{ color: theme.palette.success.main }}
-                    />
-                    <Box
-                      sx={{
-                        top: 0,
-                        left: 0,
-                        bottom: 0,
-                        right: 0,
-                        position: 'absolute',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <Typography variant="h6" component="div" color="success.main" sx={{ fontWeight: 'bold' }}>
-                        {trainingJobs.length > 0 ? Math.round((trainingJobs.filter(job => job.status === 'completed').length / trainingJobs.length) * 100) : 0}%
-                      </Typography>
-                    </Box>
-                  </Box>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 'medium' }}>
-                    Success Rate
-                  </Typography>
-                </Box>
-              </Grid>
-
-              {/* Average Training Time */}
-              <Grid item xs={12} sm={6} md={3}>
-                <Box sx={{ textAlign: 'center', p: 2 }}>
-                  <Typography variant="h4" color="primary" sx={{ fontWeight: 'bold', mb: 1 }}>
-                    {Math.floor(Math.random() * 30) + 15}m
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 'medium' }}>
-                    Avg. Training Time
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Per job completion
-                  </Typography>
-                </Box>
-              </Grid>
-
-              {/* Total Data Processed */}
-              <Grid item xs={12} sm={6} md={3}>
-                <Box sx={{ textAlign: 'center', p: 2 }}>
-                  <Typography variant="h4" color="secondary" sx={{ fontWeight: 'bold', mb: 1 }}>
-                    {Math.floor(Math.random() * 500) + 200}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 'medium' }}>
-                    Vector Embeddings
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Generated in Weaviate
-                  </Typography>
-                </Box>
-              </Grid>
-
-              {/* Model Performance */}
-              <Grid item xs={12} sm={6} md={3}>
-                <Box sx={{ textAlign: 'center', p: 2 }}>
-                  <Typography variant="h4" color="warning.main" sx={{ fontWeight: 'bold', mb: 1 }}>
-                    {(Math.random() * 10 + 85).toFixed(1)}%
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 'medium' }}>
-                    Model Accuracy
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Gemini 2.5 Flash
-                  </Typography>
-                </Box>
-              </Grid>
-            </Grid>
-
-            {/* Training Trends */}
-            <Box sx={{ mt: 3, p: 2, bgcolor: alpha(theme.palette.info.main, 0.05), borderRadius: 1 }}>
-              <Typography variant="subtitle2" color="info.main" sx={{ fontWeight: 'bold', mb: 2 }}>
-                📊 Training Insights
-              </Typography>
-              <Grid container spacing={2}>
-                <Grid item xs={12} md={6}>
-                  <Typography variant="body2" color="text.secondary">
-                    • Most common file type: <strong>PDF ({uploadedFiles.filter(f => f.type.includes('pdf')).length} files)</strong>
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    • Average file size: <strong>{uploadedFiles.length > 0 ? formatFileSize(uploadedFiles.reduce((acc, file) => acc + file.size, 0) / uploadedFiles.length) : '0 Bytes'}</strong>
-                  </Typography>
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <Typography variant="body2" color="text.secondary">
-                    • Peak training time: <strong>Business hours (9 AM - 5 PM)</strong>
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    • Recommended batch size: <strong>32-64 documents</strong>
-                  </Typography>
-                </Grid>
-              </Grid>
-            </Box>
-          </CardContent>
-        </Card>
-      )}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} md={6}>
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <Card
-              sx={{
-                background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`,
-                border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-                cursor: 'pointer',
-                height: '100%',
-              }}
-              onClick={() => setUploadDialogOpen(true)}
-            >
-              <CardContent sx={{ textAlign: 'center', py: 4 }}>
-                <UploadIcon sx={{ fontSize: 48, color: theme.palette.primary.main, mb: 2 }} />
-                <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>
-                  Upload Training Files
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Upload PDF, DOC, TXT, JSON, or CSV files for AI training
-                </Typography>
-                <Stack direction="row" spacing={1} justifyContent="center" flexWrap="wrap">
-                  <Chip label="PDF" size="small" />
-                  <Chip label="DOC" size="small" />
-                  <Chip label="TXT" size="small" />
-                  <Chip label="JSON" size="small" />
-                  <Chip label="CSV" size="small" />
-                </Stack>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </Grid>
-
-        <Grid item xs={12} md={6}>
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <Card
-              sx={{
-                background: `linear-gradient(135deg, ${alpha(theme.palette.secondary.main, 0.1)} 0%, ${alpha(theme.palette.secondary.main, 0.05)} 100%)`,
-                border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
-                cursor: 'pointer',
-                height: '100%',
-              }}
-              onClick={() => setTrainingDialogOpen(true)}
-            >
-              <CardContent sx={{ textAlign: 'center', py: 4 }}>
-                <TrainingIcon sx={{ fontSize: 48, color: theme.palette.secondary.main, mb: 2 }} />
-                <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>
-                  Start Training
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Configure and start a new AI model training job
-                </Typography>
-                <Chip 
-                  label="Weaviate + Gemini 2.5 Flash" 
-                  size="small" 
-                  color="secondary"
-                />
-              </CardContent>
-            </Card>
-          </motion.div>
-        </Grid>
-      </Grid>
-
-      {/* Training Jobs & Progress Dashboard */}
-      <Grid container spacing={3}>
-        {/* Training Jobs */}
-        <Grid item xs={12} lg={8}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                  Training Jobs & Progress
-                </Typography>
-                <Button
-                  startIcon={isLoadingJobs ? <LoadingAnimation size={20} /> : <RefreshIcon />}
-                  onClick={() => {
-                    if (!isLoadingJobs) {
-                      loadTrainingJobs();
-                    }
-                  }}
-                  disabled={isLoadingJobs}
-                >
-                  {isLoadingJobs ? 'Loading...' : 'Refresh'}
-                </Button>
-              </Box>
-
-              {isLoadingJobs ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                  <LoadingAnimation size={48} />
-                </Box>
-              ) : trainingJobs.length === 0 ? (
-                <Box sx={{ textAlign: 'center', py: 6 }}>
-                  <TrainingIcon sx={{ fontSize: 64, color: theme.palette.text.secondary, mb: 2 }} />
-                  <Typography variant="h6" color="text.secondary" sx={{ mb: 2 }}>
-                    No training jobs found
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                    Start your first AI training job to see it here
-                  </Typography>
-                  <Button 
-                    variant="contained" 
-                    onClick={() => setTrainingDialogOpen(true)}
-                    startIcon={<PlayIcon />}
-                  >
-                    Start Training
-                  </Button>
-                </Box>
-              ) : (
-                <Stack spacing={2}>
-                  {trainingJobs.map((job) => (
-                    <motion.div
-                      key={job.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      <Card
-                        variant="outlined"
-                        sx={{
-                          p: 2,
-                          border: job.status === 'running' 
-                            ? `2px solid ${theme.palette.primary.main}` 
-                            : `1px solid ${theme.palette.divider}`,
-                          bgcolor: job.status === 'running' 
-                            ? alpha(theme.palette.primary.main, 0.05)
-                            : 'background.paper',
-                        }}
-                      >
-                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                          <Box sx={{ mt: 0.5 }}>
-                            {getStatusIcon(job.status)}
-                          </Box>
-                          
-                          <Box sx={{ flexGrow: 1 }}>
-                            {/* Job Header */}
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
-                              <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                                {job.name}
-                              </Typography>
-                              <Chip
-                                label={job.status.toUpperCase()}
-                                size="small"
-                                variant={job.status === 'running' ? 'filled' : 'outlined'}
-                                color={
-                                  job.status === 'completed' ? 'success' :
-                                  job.status === 'failed' ? 'error' :
-                                  job.status === 'running' ? 'primary' : 'default'
-                                }
-                              />
-                              {job.status === 'running' && (
-                                <Chip
-                                  label="LIVE"
-                                  size="small"
-                                  color="warning"
-                                  sx={{ 
-                                    animation: 'pulse 2s infinite',
-                                    '@keyframes pulse': {
-                                      '0%': { opacity: 1 },
-                                      '50%': { opacity: 0.5 },
-                                      '100%': { opacity: 1 }
-                                    }
-                                  }}
-                                />
-                              )}
-                            </Box>
-
-                            {/* Job Details */}
-                            <Grid container spacing={2} sx={{ mb: 2 }}>
-                              <Grid item xs={12} sm={6}>
-                                <Typography variant="body2" color="text.secondary">
-                                  <strong>Files:</strong> {job.fileCount} training documents
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                  <strong>Created by:</strong> {job.createdBy}
-                                </Typography>
-                              </Grid>
-                              <Grid item xs={12} sm={6}>
-                                <Typography variant="body2" color="text.secondary">
-                                  <strong>Started:</strong> {new Date(job.startedAt).toLocaleString()}
-                                </Typography>
-                                {job.completedAt && (
-                                  <Typography variant="body2" color="text.secondary">
-                                    <strong>Completed:</strong> {new Date(job.completedAt).toLocaleString()}
-                                  </Typography>
-                                )}
-                                {job.estimatedDuration && (
-                                  <Typography variant="body2" color="text.secondary">
-                                    <strong>Duration:</strong> {job.estimatedDuration}
-                                  </Typography>
-                                )}
-                              </Grid>
-                            </Grid>
-
-                            {/* Progress Bar for Running Jobs */}
-                            {job.status === 'running' && (
-                              <Box sx={{ mb: 2 }}>
-                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                                  <Typography variant="body2" color="primary" sx={{ fontWeight: 'medium' }}>
-                                    Training Progress
-                                  </Typography>
-                                  <Typography variant="body2" color="primary" sx={{ fontWeight: 'bold' }}>
-                                    {job.progress}%
-                                  </Typography>
-                                </Box>
-                                <LinearProgress
-                                  variant="determinate"
-                                  value={job.progress}
-                                  sx={{ 
-                                    height: 8, 
-                                    borderRadius: 4,
-                                    bgcolor: alpha(theme.palette.primary.main, 0.1),
-                                    '& .MuiLinearProgress-bar': {
-                                      borderRadius: 4,
-                                      background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-                                    }
-                                  }}
-                                />
-                                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                                  Processing with Weaviate vector embeddings and Gemini 2.5 Flash
-                                </Typography>
-                              </Box>
-                            )}
-
-                            {/* Success Metrics for Completed Jobs */}
-                            {job.status === 'completed' && (
-                              <Box sx={{ 
-                                bgcolor: alpha(theme.palette.success.main, 0.1), 
-                                p: 2, 
-                                borderRadius: 1,
-                                border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`
-                              }}>
-                                <Typography variant="body2" color="success.main" sx={{ fontWeight: 'medium', mb: 1 }}>
-                                  ✅ Training Completed Successfully
-                                </Typography>
-                                <Grid container spacing={2}>
-                                  <Grid item xs={6}>
-                                    <Typography variant="caption" color="text.secondary">
-                                      Vector Embeddings: {Math.floor(Math.random() * 1000) + 500}
-                                    </Typography>
-                                  </Grid>
-                                  <Grid item xs={6}>
-                                    <Typography variant="caption" color="text.secondary">
-                                      Model Accuracy: {(Math.random() * 15 + 85).toFixed(1)}%
-                                    </Typography>
-                                  </Grid>
-                                </Grid>
-                              </Box>
-                            )}
-
-                            {/* Error Details for Failed Jobs */}
-                            {job.status === 'failed' && (
-                              <Box sx={{ 
-                                bgcolor: alpha(theme.palette.error.main, 0.1), 
-                                p: 2, 
-                                borderRadius: 1,
-                                border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`
-                              }}>
-                                <Typography variant="body2" color="error.main" sx={{ fontWeight: 'medium', mb: 1 }}>
-                                  ❌ Training Failed
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary">
-                                  Error: Training process encountered an issue. Please check logs or contact support.
-                                </Typography>
-                              </Box>
-                            )}
-                          </Box>
-                        </Box>
-                      </Card>
-                    </motion.div>
-                  ))}
-                </Stack>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* Trained Data Management */}
-        <Grid item xs={12} lg={4}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 3 }}>
-                Trained Data Repository
-              </Typography>
-
-              {/* Upload Statistics */}
-              <Box sx={{ mb: 3 }}>
-                <Card variant="outlined" sx={{ p: 2, bgcolor: alpha(theme.palette.info.main, 0.05) }}>
-                  <Typography variant="subtitle2" color="info.main" sx={{ fontWeight: 'bold', mb: 1 }}>
-                    Upload Statistics
-                  </Typography>
-                  <Stack spacing={1}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="body2" color="text.secondary">
-                        Total Files:
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                        {uploadedFiles.length}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="body2" color="text.secondary">
-                        Total Size:
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                        {formatFileSize(uploadedFiles.reduce((acc, file) => acc + file.size, 0))}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="body2" color="text.secondary">
-                        PDF Files:
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                        {uploadedFiles.filter(f => f.type.includes('pdf')).length}
-                      </Typography>
-                    </Box>
-                  </Stack>
-                </Card>
-              </Box>
-
-              {/* Bulk Actions */}
-              {uploadedFiles.length > 0 && (
-                <Box sx={{ mb: 2, p: 2, bgcolor: alpha(theme.palette.info.main, 0.05), borderRadius: 1 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
-                      Bulk Actions
-                    </Typography>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                      <Button
-                        size="small"
-                        onClick={() => setSelectedFileIds(uploadedFiles.map(f => f.id))}
-                        disabled={selectedFileIds.length === uploadedFiles.length}
-                      >
-                        Select All
-                      </Button>
-                      <Button
-                        size="small"
-                        onClick={() => setSelectedFileIds([])}
-                        disabled={selectedFileIds.length === 0}
-                      >
-                        Clear
-                      </Button>
-                    </Box>
-                  </Box>
-                  {selectedFileIds.length > 0 && (
-                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                      <Typography variant="body2" color="text.secondary">
-                        {selectedFileIds.length} file(s) selected
-                      </Typography>
-                      <Button
-                        size="small"
-                        color="error"
-                        variant="contained"
-                        startIcon={bulkOperationLoading ? <LoadingAnimation size={16} /> : <DeleteIcon />}
-                        onClick={() => bulkDeleteFiles(selectedFileIds)}
-                        disabled={bulkOperationLoading}
-                      >
-                        {bulkOperationLoading ? 'Deleting...' : 'Delete Selected'}
-                      </Button>
-                    </Box>
-                  )}
-                </Box>
-              )}
-
-              {/* File List */}
-              <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 'bold' }}>
-                Training Files ({uploadedFiles.length})
-              </Typography>
-
-              {uploadedFiles.length === 0 ? (
-                <Box sx={{ textAlign: 'center', py: 4 }}>
-                  <FileIcon sx={{ fontSize: 48, color: theme.palette.text.secondary, mb: 2 }} />
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    No training files uploaded yet
-                  </Typography>
-                  <Button 
-                    size="small"
-                    variant="outlined" 
-                    onClick={() => setUploadDialogOpen(true)}
-                    startIcon={<UploadIcon />}
-                  >
-                    Upload Files
-                  </Button>
-                </Box>
-              ) : (
-                <Box sx={{ maxHeight: 400, overflow: 'auto' }}>
-                  <List dense>
-                    {uploadedFiles.map((file, index) => (
-                      <motion.div
-                        key={file.id}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.3, delay: index * 0.1 }}
-                      >
-                        <ListItem
-                          sx={{
-                            border: `1px solid ${theme.palette.divider}`,
-                            borderRadius: 1,
-                            mb: 1,
-                            bgcolor: 'background.paper',
-                            '&:hover': {
-                              bgcolor: alpha(theme.palette.primary.main, 0.05),
-                            }
-                          }}
+                    <ListItemSecondaryAction>
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <IconButton
+                          edge="end"
+                          aria-label="preview"
+                          onClick={() => handleFilePreview(file.id, file.name)}
+                          disabled={previewLoading}
+                          size="small"
+                          title="Preview extracted content"
                         >
-                          <ListItemIcon>
-                            <Checkbox
-                              checked={selectedFileIds.includes(file.id)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setSelectedFileIds(prev => [...prev, file.id]);
-                                } else {
-                                  setSelectedFileIds(prev => prev.filter(id => id !== file.id));
-                                }
-                              }}
-                              size="small"
-                            />
-                          </ListItemIcon>
-                          <ListItemIcon>
-                            {getFileIcon(file.type)}
-                          </ListItemIcon>
-                          <ListItemText
-                            primary={
-                              <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                                {file.name.length > 20 ? `${file.name.substring(0, 20)}...` : file.name}
-                              </Typography>
-                            }
-                            secondary={
-                              <Box>
+                          {previewLoading ? (
+                            <LoadingAnimation size={16} />
+                          ) : (
+                            <FileIcon fontSize="small" color="primary" />
+                          )}
+                        </IconButton>
+                        <IconButton
+                          edge="end"
+                          aria-label="delete"
+                          onClick={() => handleDeleteFile(file.id)}
+                          disabled={fileDeleteLoading === file.id}
+                          size="small"
+                        >
+                          {fileDeleteLoading === file.id ? (
+                            <LoadingAnimation size={16} />
+                          ) : (
+                            <DeleteIcon fontSize="small" />
+                          )}
+                        </IconButton>
+                      </Box>
+                    </ListItemSecondaryAction>
+                  </ListItem>
+                ))}
+                {uploadedFiles.length === 0 && (
+                  <ListItem>
+                    <ListItemText 
+                      primary="No training files uploaded"
+                      secondary="Upload files to start training your AI model"
+                    />
+                  </ListItem>
+                )}
+              </List>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Training Jobs */}
+        <Grid item xs={12} md={6}>
+          <Card>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                <Typography variant="h6">
+                  Training Jobs ({trainingJobs.length})
+                </Typography>
+                <IconButton size="small" onClick={loadTrainingJobs} disabled={isLoadingJobs}>
+                  {isLoadingJobs ? <LoadingAnimation size={20} /> : <RefreshIcon />}
+                </IconButton>
+              </Box>
+
+              <List>
+                {trainingJobs.map((job) => (
+                  <ListItem key={job.id} dense>
+                    <ListItemIcon>
+                      {job.status === 'completed' && <SuccessIcon color="success" />}
+                      {job.status === 'failed' && <ErrorIcon color="error" />}
+                      {(job.status === 'running' || job.status === 'initializing') && <LoadingAnimation size={20} />}
+                      {job.status === 'queued' && <PendingIcon color="info" />}
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          {job.name}
+                          <Chip 
+                            label={job.status} 
+                            size="small" 
+                            sx={{ 
+                              backgroundColor: getJobStatusColor(job.status),
+                              color: 'white',
+                              fontSize: '0.7rem'
+                            }}
+                          />
+                        </Box>
+                      }
+                      secondary={
+                        <Box>
+                          <Typography variant="caption" display="block">
+                            Files: {job.fileCount} • Created: {new Date(job.startedAt).toLocaleDateString()}
+                          </Typography>
+                          {(job.status === 'running' || job.status === 'initializing') && (
+                            <Box sx={{ mt: 0.5 }}>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
                                 <Typography variant="caption" color="text.secondary">
-                                  {formatFileSize(file.size)}
+                                  {job.currentStep || 'Processing...'}
                                 </Typography>
-                                <br />
                                 <Typography variant="caption" color="text.secondary">
-                                  {new Date(file.uploadedAt).toLocaleDateString()}
+                                  {job.progress}%
                                 </Typography>
                               </Box>
-                            }
-                          />
-                          <ListItemSecondaryAction>
-                            <IconButton 
-                              size="small" 
-                              onClick={() => deleteUploadedFile(file.id, file.name)}
-                              sx={{ color: theme.palette.error.main }}
-                              disabled={fileDeleteLoading === file.id || bulkOperationLoading}
-                            >
-                              {fileDeleteLoading === file.id ? (
-                                <CircularProgress size={16} />
-                              ) : (
-                                <DeleteIcon fontSize="small" />
-                              )}
-                            </IconButton>
-                          </ListItemSecondaryAction>
-                        </ListItem>
-                      </motion.div>
-                    ))}
-                  </List>
-                </Box>
-              )}
-
-              {/* Quick Actions */}
-              <Box sx={{ mt: 3 }}>
-                <Stack spacing={1}>
-                  <Button
-                    fullWidth
-                    variant="outlined"
-                    size="small"
-                    onClick={() => setUploadDialogOpen(true)}
-                    startIcon={<UploadIcon />}
-                  >
-                    Upload More Files
-                  </Button>
-                  <Button
-                    fullWidth
-                    variant="contained"
-                    size="small"
-                    onClick={() => setTrainingDialogOpen(true)}
-                    startIcon={<TrainingIcon />}
-                    disabled={uploadedFiles.length === 0}
-                  >
-                    Start Training
-                  </Button>
-                </Stack>
-              </Box>
+                              <LinearProgress 
+                                variant="determinate" 
+                                value={job.progress} 
+                                sx={{ height: 6, borderRadius: 3 }}
+                              />
+                            </Box>
+                          )}
+                          {job.status === 'completed' && job.completedAt && (
+                            <Typography variant="caption" color="success.main" display="block">
+                              Completed: {new Date(job.completedAt).toLocaleString()}
+                            </Typography>
+                          )}
+                          {job.status === 'failed' && job.error && (
+                            <Typography variant="caption" color="error.main" display="block">
+                              Error: {job.error}
+                            </Typography>
+                          )}
+                        </Box>
+                      }
+                    />
+                  </ListItem>
+                ))}
+                {trainingJobs.length === 0 && (
+                  <ListItem>
+                    <ListItemText 
+                      primary="No training jobs"
+                      secondary="Start training to create your first AI model"
+                    />
+                  </ListItem>
+                )}
+              </List>
             </CardContent>
           </Card>
         </Grid>
       </Grid>
 
       {/* Upload Dialog */}
-      <Dialog
-        open={uploadDialogOpen}
-        onClose={() => setUploadDialogOpen(false)}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Typography variant="h6">Upload Training Files</Typography>
-            <IconButton onClick={() => setUploadDialogOpen(false)}>
-              <CloseIcon />
-            </IconButton>
-          </Box>
-        </DialogTitle>
+      <Dialog open={uploadDialogOpen} onClose={() => setUploadDialogOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>Upload Training Data</DialogTitle>
         <DialogContent>
-          <Alert severity="info" sx={{ mb: 3 }}>
-            Upload files to train your AI model. Files will be processed and stored in Weaviate for vector embeddings.
-          </Alert>
-
-          <Box sx={{ mb: 3 }}>
+          <Box sx={{ mt: 2 }}>
             <input
               accept=".pdf,.doc,.docx,.txt,.json,.csv"
-              type="file"
-              multiple
-              onChange={handleFileSelect}
               style={{ display: 'none' }}
-              id="file-upload-input"
+              id="file-upload"
+              multiple
+              type="file"
+              onChange={handleFileSelect}
             />
-            <label htmlFor="file-upload-input">
-              <Paper
-                sx={{
-                  p: 4,
-                  textAlign: 'center',
-                  border: `2px dashed ${theme.palette.divider}`,
-                  cursor: 'pointer',
-                  '&:hover': {
-                    borderColor: theme.palette.primary.main,
-                    backgroundColor: alpha(theme.palette.primary.main, 0.05),
-                  },
-                }}
-              >
-                <UploadIcon sx={{ fontSize: 48, color: theme.palette.text.secondary, mb: 2 }} />
-                <Typography variant="h6" sx={{ mb: 1 }}>
-                  Click to select files or drag and drop
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Supported formats: PDF, DOC, DOCX, TXT, JSON, CSV
-                </Typography>
-                <Stack direction="row" spacing={1} justifyContent="center" flexWrap="wrap">
-                  <Chip label="Max 10MB per file" size="small" />
-                  <Chip label="Multiple files supported" size="small" />
-                </Stack>
-              </Paper>
+            <label htmlFor="file-upload">
+              <Button variant="outlined" component="span" startIcon={<UploadIcon />}>
+                Select Files
+              </Button>
             </label>
+            
+            <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+              Supported formats: PDF, DOC, DOCX, TXT, JSON, CSV
+            </Typography>
+
+            {selectedFiles.length > 0 && (
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                  Selected Files ({selectedFiles.length}):
+                </Typography>
+                <List>
+                  {selectedFiles.map((file, index) => (
+                    <ListItem key={index} dense>
+                      <ListItemIcon>
+                        {getFileIcon(file.type)}
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={file.name}
+                        secondary={`${(file.size / 1024).toFixed(1)} KB`}
+                      />
+                      <ListItemSecondaryAction>
+                        <IconButton edge="end" onClick={() => removeSelectedFile(index)}>
+                          <CloseIcon />
+                        </IconButton>
+                      </ListItemSecondaryAction>
+                    </ListItem>
+                  ))}
+                </List>
+              </Box>
+            )}
+
+            {isUploading && (
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  Uploading... {uploadProgress.toFixed(0)}%
+                </Typography>
+                <LinearProgress variant="determinate" value={uploadProgress} />
+              </Box>
+            )}
           </Box>
-
-          {selectedFiles.length > 0 && (
-            <Box>
-              <Typography variant="subtitle2" sx={{ mb: 2 }}>
-                Selected Files ({selectedFiles.length})
-              </Typography>
-              <List>
-                {selectedFiles.map((file, index) => (
-                  <ListItem key={index}>
-                    <ListItemIcon>
-                      {getFileIcon(file.type)}
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={file.name}
-                      secondary={formatFileSize(file.size)}
-                    />
-                    <ListItemSecondaryAction>
-                      <IconButton onClick={() => removeSelectedFile(index)}>
-                        <DeleteIcon />
-                      </IconButton>
-                    </ListItemSecondaryAction>
-                  </ListItem>
-                ))}
-              </List>
-            </Box>
-          )}
-
-          {isUploading && (
-            <Box sx={{ mt: 2 }}>
-              <LinearProgress variant="determinate" value={uploadProgress} />
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                Uploading files to Weaviate vector database... {Math.round(uploadProgress)}%
-              </Typography>
-            </Box>
-          )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setUploadDialogOpen(false)}>
+          <Button onClick={() => setUploadDialogOpen(false)} disabled={isUploading}>
             Cancel
           </Button>
-          <Button
-            variant="contained"
-            onClick={handleUpload}
+          <Button 
+            onClick={handleUpload} 
+            variant="contained" 
             disabled={selectedFiles.length === 0 || isUploading}
-            startIcon={isUploading ? <LoadingAnimation size={20} /> : <UploadIcon />}
+            startIcon={isUploading ? <LoadingAnimation size={16} /> : <UploadIcon />}
           >
-            {isUploading ? 'Uploading...' : 'Upload Files'}
+            Upload
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Training Dialog */}
+      <Dialog open={trainingDialogOpen} onClose={() => setTrainingDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Start Training</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Training Name"
+            fullWidth
+            variant="outlined"
+            value={trainingName}
+            onChange={(e) => setTrainingName(e.target.value)}
+            sx={{ mt: 2 }}
+          />
+          
+          <Alert severity="info" sx={{ mt: 2 }}>
+            This will start training using {uploadedFiles.length} uploaded files.
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setTrainingDialogOpen(false)} disabled={isTraining}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleStartTraining} 
+            variant="contained" 
+            disabled={!trainingName.trim() || isTraining}
+            startIcon={isTraining ? <LoadingAnimation size={16} /> : <PlayIcon />}
+          >
+            Start Training
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Vector Database Management Dialog */}
+      <Dialog 
+        open={vectorDbDialogOpen} 
+        onClose={() => setVectorDbDialogOpen(false)} 
+        maxWidth="md" 
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <DatabaseIcon />
+          Vector Database Management
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 2 }}>
+            <Alert severity="info" sx={{ mb: 3 }}>
+              Manage your trained AI model data stored in the Weaviate vector database. 
+              These operations affect only the trained embeddings, not your original training files.
+            </Alert>
+
+            {/* Database Status Section */}
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                Database Status
+                <Button 
+                  size="small" 
+                  startIcon={vectorDbLoading ? <LoadingAnimation size={16} /> : <RefreshIcon />}
+                  onClick={loadVectorDbStatus}
+                  disabled={vectorDbLoading}
+                >
+                  Refresh
+                </Button>
+              </Typography>
+              
+              {vectorDbStatus ? (
+                <Paper sx={{ p: 2, backgroundColor: theme.palette.grey[50] }}>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="body2" color="textSecondary">Connection Status</Typography>
+                      <Chip 
+                        label={vectorDbStatus.connected ? 'Connected' : 'Disconnected'}
+                        color={vectorDbStatus.connected ? 'success' : 'error'}
+                        size="small"
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="body2" color="textSecondary">Total Objects</Typography>
+                      <Typography variant="body1" fontWeight="medium">
+                        {vectorDbStatus.total_objects || 0}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="body2" color="textSecondary">Total Size</Typography>
+                      <Typography variant="body1" fontWeight="medium">
+                        {vectorDbStatus.total_size || 'Unknown'}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="body2" color="textSecondary">Collections</Typography>
+                      <Typography variant="body1" fontWeight="medium">
+                        {vectorDbStatus.collections?.length || 0}
+                      </Typography>
+                    </Grid>
+                  </Grid>
+                  
+                  {vectorDbStatus.collections && vectorDbStatus.collections.length > 0 && (
+                    <Box sx={{ mt: 2 }}>
+                      <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
+                        Collections Detail:
+                      </Typography>
+                      {vectorDbStatus.collections.map((collection, index: number) => (
+                        <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.5 }}>
+                          <Typography variant="body2">{collection.name}</Typography>
+                          <Typography variant="body2" color="textSecondary">
+                            {collection.object_count} objects ({collection.size})
+                          </Typography>
+                        </Box>
+                      ))}
+                    </Box>
+                  )}
+                </Paper>
+              ) : (
+                <Paper sx={{ p: 2, textAlign: 'center' }}>
+                  <Typography color="textSecondary">
+                    Click &quot;Refresh&quot; to load database status
+                  </Typography>
+                </Paper>
+              )}
+            </Box>
+
+            {/* Management Actions */}
+            <Typography variant="h6" sx={{ mb: 2 }}>Management Actions</Typography>
+            <Stack spacing={2}>
+              <Button
+                variant="outlined"
+                color="warning"
+                startIcon={clearDatabaseLoading ? <LoadingAnimation size={16} /> : <WarningIcon />}
+                onClick={() => {
+                  setClearAction('database');
+                  setConfirmClearDialogOpen(true);
+                }}
+                disabled={clearDatabaseLoading || clearCollectionLoading}
+                fullWidth
+              >
+                Clear Entire Database
+              </Button>
+              
+              {vectorDbStatus?.collections && vectorDbStatus.collections.length > 0 && (
+                <Box>
+                  <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
+                    Clear Specific Collection:
+                  </Typography>
+                  {vectorDbStatus.collections.map((collection, index: number) => (
+                    <Button
+                      key={index}
+                      variant="outlined"
+                      color="warning"
+                      size="small"
+                      startIcon={clearCollectionLoading ? <LoadingAnimation size={16} /> : <DeleteIcon />}
+                      onClick={() => {
+                        setClearAction('collection');
+                        setSelectedCollection(collection.name);
+                        setConfirmClearDialogOpen(true);
+                      }}
+                      disabled={clearDatabaseLoading || clearCollectionLoading}
+                      sx={{ mr: 1, mb: 1 }}
+                    >
+                      Clear &quot;{collection.name}&quot; ({collection.object_count})
+                    </Button>
+                  ))}
+                </Box>
+              )}
+            </Stack>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setVectorDbDialogOpen(false)}>
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Confirmation Dialog for Clear Operations */}
       <Dialog
-        open={trainingDialogOpen}
-        onClose={() => setTrainingDialogOpen(false)}
+        open={confirmClearDialogOpen}
+        onClose={() => setConfirmClearDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'warning.main' }}>
+          <WarningIcon />
+          Confirm Destructive Action
+        </DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            <strong>⚠️ This action cannot be undone!</strong>
+          </Alert>
+          
+          {clearAction === 'database' ? (
+            <Typography>
+              Are you sure you want to clear the <strong>entire vector database</strong>?
+              <br /><br />
+              This will permanently delete:
+              <br />• All vector embeddings
+              <br />• All trained model data
+              <br />• All collections and their contents
+              <br /><br />
+              Your original training files will remain intact and can be used to retrain the model.
+            </Typography>
+          ) : clearAction === 'collection' && selectedCollection ? (
+            <Typography>
+              Are you sure you want to clear the <strong>&quot;{selectedCollection}&quot;</strong> collection?
+              <br /><br />
+              This will permanently delete:
+              <br />• All vector embeddings in this collection
+              <br />• All objects and their metadata
+              <br /><br />
+              Other collections and your original training files will remain intact.
+            </Typography>
+          ) : null}
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={() => {
+              setConfirmClearDialogOpen(false);
+              setClearAction(null);
+              setSelectedCollection('');
+            }}
+            disabled={clearDatabaseLoading || clearCollectionLoading}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleConfirmClear}
+            variant="contained"
+            color="warning"
+            startIcon={(clearDatabaseLoading || clearCollectionLoading) ? <LoadingAnimation size={16} /> : <WarningIcon />}
+            disabled={clearDatabaseLoading || clearCollectionLoading}
+          >
+            {clearAction === 'database' ? 'Clear Database' : 'Clear Collection'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Enhanced File Content Preview Dialog */}
+      <Dialog
+        open={filePreviewDialog}
+        onClose={() => setFilePreviewDialog(false)}
         maxWidth="md"
         fullWidth
       >
         <DialogTitle>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Typography variant="h6">Start AI Training</Typography>
-            <IconButton onClick={() => setTrainingDialogOpen(false)}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h6">
+              📄 File Content Preview
+            </Typography>
+            <IconButton onClick={() => setFilePreviewDialog(false)} size="small">
               <CloseIcon />
             </IconButton>
           </Box>
         </DialogTitle>
         <DialogContent>
-          <Stack spacing={3} sx={{ mt: 2 }}>
-            <Alert severity="info">
-              Configure your AI model training using Weaviate for vector storage and Gemini 2.5 Flash for text generation.
-            </Alert>
+          {selectedFilePreview && (
+            <Stack spacing={2}>
+              <Alert severity="info">
+                Enhanced PDF text extraction using {selectedFilePreview.extraction_method}
+              </Alert>
+              
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                <Chip 
+                  label={`Content Quality: ${selectedFilePreview.content_quality}`}
+                  color={selectedFilePreview.content_quality === 'high' ? 'success' : 
+                         selectedFilePreview.content_quality === 'medium' ? 'warning' : 'error'}
+                />
+                <Chip 
+                  label={`${selectedFilePreview.content_length} characters`}
+                  variant="outlined"
+                />
+                {selectedFilePreview.pages_processed && selectedFilePreview.pages_processed > 0 && (
+                  <Chip 
+                    label={`${selectedFilePreview.pages_processed} pages processed`}
+                    variant="outlined"
+                  />
+                )}
+              </Box>
 
-            <TextField
-              fullWidth
-              label="Training Job Name"
-              value={trainingName}
-              onChange={(e) => setTrainingName(e.target.value)}
-              placeholder="e.g., Customer Support Training v1.0"
-              helperText="Enter a descriptive name for this training job"
-            />
+              <Paper sx={{ p: 2, backgroundColor: '#f5f5f5', maxHeight: 400, overflow: 'auto' }}>
+                <Typography variant="subtitle2" gutterBottom>
+                  Extracted Content Preview:
+                </Typography>
+                <Typography
+                  variant="body2"
+                  component="pre"
+                  sx={{ 
+                    whiteSpace: 'pre-wrap',
+                    fontFamily: 'monospace',
+                    fontSize: '0.875rem',
+                    lineHeight: 1.5
+                  }}
+                >
+                  {selectedFilePreview.content_preview}
+                </Typography>
+              </Paper>
 
-            <Typography variant="subtitle2">Training Configuration</Typography>
-            
-            <Grid container spacing={2}>
-              <Grid item xs={6}>
-                <TextField
-                  fullWidth
-                  label="Learning Rate"
-                  type="number"
-                  value={trainingConfig.learningRate}
-                  onChange={(e) => setTrainingConfig(prev => ({
-                    ...prev,
-                    learningRate: parseFloat(e.target.value)
-                  }))}
-                  inputProps={{ step: 0.0001, min: 0.0001, max: 0.1 }}
-                  helperText="0.0001 - 0.1"
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <TextField
-                  fullWidth
-                  label="Batch Size"
-                  type="number"
-                  value={trainingConfig.batchSize}
-                  onChange={(e) => setTrainingConfig(prev => ({
-                    ...prev,
-                    batchSize: parseInt(e.target.value)
-                  }))}
-                  inputProps={{ min: 1, max: 128 }}
-                  helperText="1 - 128"
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <TextField
-                  fullWidth
-                  label="Epochs"
-                  type="number"
-                  value={trainingConfig.epochs}
-                  onChange={(e) => setTrainingConfig(prev => ({
-                    ...prev,
-                    epochs: parseInt(e.target.value)
-                  }))}
-                  inputProps={{ min: 1, max: 100 }}
-                  helperText="1 - 100"
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <TextField
-                  fullWidth
-                  label="Temperature"
-                  type="number"
-                  value={trainingConfig.temperature}
-                  onChange={(e) => setTrainingConfig(prev => ({
-                    ...prev,
-                    temperature: parseFloat(e.target.value)
-                  }))}
-                  inputProps={{ step: 0.1, min: 0.0, max: 2.0 }}
-                  helperText="0.0 - 2.0"
-                />
-              </Grid>
-            </Grid>
-
-            <Alert severity="warning">
-              Training may take 30-60 minutes depending on the amount of data and configuration. 
-              The system will use Weaviate for vector embeddings and Gemini 2.5 Flash for model training.
-            </Alert>
-          </Stack>
+              {processingDetails.enhanced_extraction && (
+                <Alert severity="success">
+                  ✅ This file was processed with enhanced PDF text extraction and is ready for AI training.
+                </Alert>
+              )}
+            </Stack>
+          )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setTrainingDialogOpen(false)}>
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            onClick={startTraining}
-            disabled={!trainingName.trim() || isTraining}
-            startIcon={isTraining ? <LoadingAnimation size={20} /> : <TrainingIcon />}
-          >
-            {isTraining ? 'Starting Training...' : 'Start Training'}
+          <Button onClick={() => setFilePreviewDialog(false)}>
+            Close
           </Button>
         </DialogActions>
       </Dialog>

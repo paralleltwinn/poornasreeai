@@ -12,7 +12,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
   Chip,
   IconButton,
   Button,
@@ -23,8 +22,6 @@ import {
   TextField,
   Tooltip,
   TablePagination,
-  CircularProgress,
-  Alert,
   Grid,
   Divider,
   Stack,
@@ -34,7 +31,6 @@ import {
 } from '@mui/material';
 import {
   Visibility as ViewIcon,
-  Edit as EditIcon,
   Block as SuspendIcon,
   CheckCircle as ActivateIcon,
   Delete as DeleteIcon,
@@ -45,7 +41,6 @@ import {
   Inventory as MachineIcon,
   CalendarToday as DateIcon,
   Refresh as RefreshIcon,
-  Warning as WarningIcon,
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import LoadingAnimation from '@/components/LoadingAnimation';
@@ -66,18 +61,6 @@ interface User {
   state?: string;
 }
 
-interface ApiResponse {
-  users?: User[];
-  total?: number;
-  page?: number;
-  size?: number;
-  pages?: number;
-  success?: boolean;
-  message?: string;
-  detail?: string;
-  errors?: string[];
-}
-
 interface ViewProps {
   stats?: unknown;
   isLoading?: boolean;
@@ -85,7 +68,7 @@ interface ViewProps {
   realTimePendingCount?: number;
 }
 
-export default function Customers({ isLoading: parentLoading, onRefresh }: ViewProps) {
+export default function Customers({ onRefresh }: ViewProps) {
   const theme = useTheme();
   const { showSuccess, showError, showWarning, showInfo } = useSnackbar();
   
@@ -98,17 +81,18 @@ export default function Customers({ isLoading: parentLoading, onRefresh }: ViewP
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [total, setTotal] = useState(0);
 
-  const handleApiError = (error: any, defaultMessage: string) => {
+  const handleApiError = useCallback((error: unknown, defaultMessage: string) => {
     console.error('API Error:', error);
     
-    if (error.response) {
+    if (error && typeof error === 'object' && 'response' in error) {
+      const err = error as { response?: { status?: number; data?: { detail?: string; errors?: string[] } } };
       // Server responded with error status
-      const status = error.response.status;
-      const data = error.response.data;
+      const status = err.response?.status;
+      const data = err.response?.data;
       
       switch (status) {
         case 400:
-          showError(data.detail || 'Invalid request. Please check your input.', 'Bad Request');
+          showError(data?.detail || 'Invalid request. Please check your input.', 'Bad Request');
           break;
         case 401:
           showError('Your session has expired. Please log in again.', 'Authentication Required');
@@ -120,28 +104,29 @@ export default function Customers({ isLoading: parentLoading, onRefresh }: ViewP
           showError('The requested resource was not found.', 'Not Found');
           break;
         case 422:
-          if (data.errors && Array.isArray(data.errors)) {
+          if (data?.errors && Array.isArray(data.errors)) {
             data.errors.forEach((error: string) => showError(error, 'Validation Error'));
           } else {
-            showError(data.detail || 'Validation failed. Please check your input.', 'Validation Error');
+            showError(data?.detail || 'Validation failed. Please check your input.', 'Validation Error');
           }
           break;
         case 500:
           showError('A server error occurred. Please try again later.', 'Server Error');
           break;
         default:
-          showError(data.detail || defaultMessage, `Error ${status}`);
+          showError(data?.detail || defaultMessage, `Error ${status}`);
       }
-    } else if (error.request) {
+    } else if (error && typeof error === 'object' && 'request' in error) {
       // Network error
       showError('Unable to connect to the server. Please check your internet connection.', 'Connection Error');
     } else {
       // Other error
-      showError(error.message || defaultMessage, 'Error');
+      const errorMessage = error instanceof Error ? error.message : defaultMessage;
+      showError(errorMessage, 'Error');
     }
-  };
+  }, [showError]);
 
-  const makeApiRequest = async (url: string, options: RequestInit = {}) => {
+  const makeApiRequest = useCallback(async (url: string, options: RequestInit = {}) => {
     const token = localStorage.getItem('auth_token');
     
     if (!token) {
@@ -174,7 +159,7 @@ export default function Customers({ isLoading: parentLoading, onRefresh }: ViewP
     }
 
     return data;
-  };
+  }, [showError]);
 
   const fetchCustomers = useCallback(async () => {
     try {
@@ -223,7 +208,7 @@ export default function Customers({ isLoading: parentLoading, onRefresh }: ViewP
       
       let endpoint = '';
       let method = 'PUT';
-      let body = {};
+      const body = {};
 
       switch (action) {
         case 'activate':

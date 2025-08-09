@@ -4,8 +4,7 @@ import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useApiResponse } from '@/hooks/useApiResponse';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useState, useCallback } from 'react';
-import { UserRole } from '@/types/auth';
+import { useEffect, useCallback } from 'react';
 import LoadingAnimation from '@/components/LoadingAnimation';
 
 // Import dashboard components

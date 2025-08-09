@@ -45,7 +45,7 @@ type LoginMode = 'password' | 'otp';
 
 const LoginForm: React.FC<LoginFormProps> = ({ onRegisterClick, onSuccess }) => {
   const { login, loginWithOTP, requestOTP, isLoading, clearError } = useAuth();
-  const { handleLoginResponse, handleOtpRequestResponse, showSuccessMessage } = useApiResponse();
+  const { handleLoginResponse, handleOtpRequestResponse } = useApiResponse();
   
   // Form state
   const [mode, setMode] = useState<LoginMode>('password');

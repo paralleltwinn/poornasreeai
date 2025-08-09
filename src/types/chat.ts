@@ -14,6 +14,7 @@ export interface Source {
   snippet: string;
   favicon?: string;
   domain: string;
+  relevance_score?: number;
 }
 
 export interface ChatSession {

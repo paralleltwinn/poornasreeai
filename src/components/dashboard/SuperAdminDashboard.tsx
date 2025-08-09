@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import {
   Box,
@@ -76,7 +76,7 @@ interface DashboardStats {
 
 export default function SuperAdminDashboard() {
   const { user, logout } = useAuth();
-  const { showErrorMessage, showWarningMessage } = useApiResponse();
+  const { showErrorMessage } = useApiResponse();
   const [currentTab, setCurrentTab] = useState(0);
   const [stats, setStats] = useState<DashboardStats>({
     total_users: 0,
@@ -89,11 +89,7 @@ export default function SuperAdminDashboard() {
   });
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchDashboardStats();
-  }, []);
-
-  const fetchDashboardStats = async () => {
+  const fetchDashboardStats = useCallback(async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('auth_token');
@@ -136,7 +132,11 @@ export default function SuperAdminDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showErrorMessage]);
+
+  useEffect(() => {
+    fetchDashboardStats();
+  }, [fetchDashboardStats]);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setCurrentTab(newValue);

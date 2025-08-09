@@ -152,7 +152,7 @@ export default function ProfessionalAdminDashboard() {
     }, 30000); // 30 seconds
 
     return () => clearInterval(interval);
-  }, []); // Empty dependency array to run only once on mount
+  }, [fetchStats, fetchPendingCount]); // Add both dependencies
 
   // Remove the problematic useEffect that was causing infinite updates
   // useEffect(() => {
@@ -169,7 +169,7 @@ export default function ProfessionalAdminDashboard() {
     } finally {
       setIsLoading(false);
     }
-  }, []); // Empty dependency array since fetchStats and fetchPendingCount are stable
+  }, [fetchStats, fetchPendingCount]); // Add dependencies
 
   const renderCurrentView = () => {
     const commonProps = {

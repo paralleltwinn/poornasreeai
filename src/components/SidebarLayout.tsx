@@ -32,7 +32,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { appConfig } from '../config/app';
 import { ChatSession } from '../types/chat';
 import { useAuth } from '../contexts/AuthContext';
-import { UserRole } from '../types/auth';
 import AuthModal from './auth/AuthModal';
 
 interface SidebarLayoutProps {

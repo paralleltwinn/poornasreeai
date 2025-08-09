@@ -12,7 +12,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
   Chip,
   IconButton,
   Button,
@@ -23,8 +22,6 @@ import {
   TextField,
   Tooltip,
   TablePagination,
-  CircularProgress,
-  Alert,
   Grid,
   Divider,
   Stack,
@@ -34,7 +31,6 @@ import {
 } from '@mui/material';
 import {
   Visibility as ViewIcon,
-  Edit as EditIcon,
   Block as SuspendIcon,
   CheckCircle as ActivateIcon,
   Delete as DeleteIcon,
@@ -44,7 +40,6 @@ import {
   Business as DepartmentIcon,
   CalendarToday as DateIcon,
   Refresh as RefreshIcon,
-  Warning as WarningIcon,
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import LoadingAnimation from '@/components/LoadingAnimation';
@@ -84,7 +79,7 @@ interface ViewProps {
   realTimePendingCount?: number;
 }
 
-export default function Engineers({ isLoading: parentLoading, onRefresh }: ViewProps) {
+export default function Engineers({ onRefresh }: ViewProps) {
   const theme = useTheme();
   const { showSuccess, showError, showWarning, showInfo } = useSnackbar();
   
@@ -97,17 +92,19 @@ export default function Engineers({ isLoading: parentLoading, onRefresh }: ViewP
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [total, setTotal] = useState(0);
 
-  const handleApiError = (error: any, defaultMessage: string) => {
+  const handleApiError = (error: unknown, defaultMessage: string) => {
     console.error('API Error:', error);
     
-    if (error.response) {
+    const err = error as { response?: { status: number; data?: { detail?: string; message?: string } }; request?: unknown; message?: string };
+    
+    if (err.response) {
       // Server responded with error status
-      const status = error.response.status;
-      const data = error.response.data;
+      const status = err.response.status;
+      const data = err.response.data;
       
       switch (status) {
         case 400:
-          showError(data.detail || 'Invalid request. Please check your input.', 'Bad Request');
+          showError(data?.detail || 'Invalid request. Please check your input.', 'Bad Request');
           break;
         case 401:
           showError('Your session has expired. Please log in again.', 'Authentication Required');
@@ -119,24 +116,20 @@ export default function Engineers({ isLoading: parentLoading, onRefresh }: ViewP
           showError('The requested resource was not found.', 'Not Found');
           break;
         case 422:
-          if (data.errors && Array.isArray(data.errors)) {
-            data.errors.forEach((error: string) => showError(error, 'Validation Error'));
-          } else {
-            showError(data.detail || 'Validation failed. Please check your input.', 'Validation Error');
-          }
+          showError(data?.detail || 'Validation failed. Please check your input.', 'Validation Error');
           break;
         case 500:
           showError('A server error occurred. Please try again later.', 'Server Error');
           break;
         default:
-          showError(data.detail || defaultMessage, `Error ${status}`);
+          showError(data?.detail || defaultMessage, `Error ${status}`);
       }
-    } else if (error.request) {
+    } else if (err.request) {
       // Network error
       showError('Unable to connect to the server. Please check your internet connection.', 'Connection Error');
     } else {
       // Other error
-      showError(error.message || defaultMessage, 'Error');
+      showError(err.message || defaultMessage, 'Error');
     }
   };
 
@@ -207,7 +200,7 @@ export default function Engineers({ isLoading: parentLoading, onRefresh }: ViewP
     } finally {
       setLoading(false);
     }
-  }, [page, rowsPerPage]);
+  }, [page, rowsPerPage, handleApiError, makeApiRequest, showInfo, showWarning]);
 
   useEffect(() => {
     fetchEngineers();
@@ -222,7 +215,7 @@ export default function Engineers({ isLoading: parentLoading, onRefresh }: ViewP
       
       let endpoint = '';
       let method = 'PUT';
-      let body = {};
+      const body = {};
 
       switch (action) {
         case 'activate':
