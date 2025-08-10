@@ -19,6 +19,7 @@ const API_VERSION = '/api/v1';
 export interface ChatRequest {
   message: string;
   conversation_id?: string;
+  concise?: boolean; // request concise PDF-style structured response
 }
 
 export interface ChatResponse {
@@ -93,7 +94,7 @@ const makeAIRequest = async <T>(endpoint: string, options: RequestInit = {}): Pr
 export const chatWithAI = async (request: ChatRequest): Promise<ChatResponse> => {
   return makeAIRequest<ChatResponse>(`${API_VERSION}/ai/chat`, {
     method: 'POST',
-    body: JSON.stringify(request),
+    body: JSON.stringify({ ...request }),
   });
 };
 

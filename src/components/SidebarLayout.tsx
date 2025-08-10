@@ -51,7 +51,7 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
-  const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [isLogoHovered, setIsLogoHovered] = useState(false);
 
   // Mock chat sessions
   useEffect(() => {
@@ -81,36 +81,11 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
     setChatSessions(mockSessions);
   }, []);
 
-  const handleMouseEnter = () => {
+  const toggleSidebar = () => {
     if (!isMobile) {
-      // Clear any existing timeout
-      if (hoverTimeout) {
-        clearTimeout(hoverTimeout);
-        setHoverTimeout(null);
-      }
-      setIsExpanded(true);
+      setIsExpanded(!isExpanded);
     }
   };
-
-  const handleMouseLeave = () => {
-    if (!isMobile) {
-      // Set a 2-second delay before hiding the sidebar
-      const timeout = setTimeout(() => {
-        setIsExpanded(false);
-        setHoverTimeout(null);
-      }, 2000);
-      setHoverTimeout(timeout);
-    }
-  };
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (hoverTimeout) {
-        clearTimeout(hoverTimeout);
-      }
-    };
-  }, [hoverTimeout]);
 
   const toggleMobileDrawer = () => {
     setIsMobileOpen(!isMobileOpen);
@@ -174,65 +149,139 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
       }}
     >
       {/* Header */}
-      <Box sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-        <Box
-          sx={{
-            width: 32,
-            height: 32,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-            position: 'relative',
-          }}
-        >
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ duration: 0.3 }}
-            style={{
-              width: '32px',
-              height: '32px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
+      <Box sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 1, justifyContent: 'space-between' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 0 }}>
+          {/* Logo - Always show when collapsed */}
+          {!isExpanded && !isMobile && (
             <Box
-              component="img"
-              src="/logo/iconlogo.png"
-              alt=""
+              onMouseEnter={() => setIsLogoHovered(true)}
+              onMouseLeave={() => setIsLogoHovered(false)}
               sx={{
                 width: 32,
                 height: 32,
-                borderRadius: 1,
-                objectFit: 'contain',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 flexShrink: 0,
                 position: 'relative',
-                zIndex: 1,
+                cursor: 'pointer',
+                borderRadius: 1,
+                transition: 'background-color 0.2s ease',
+                '&:hover': {
+                  bgcolor: 'action.hover',
+                },
               }}
-            />
-          </motion.div>
-        </Box>
-        <AnimatePresence mode="wait">
+              onClick={toggleSidebar}
+            >
+              {/* Always show logo, but show menu icon on hover */}
+              {!isLogoHovered ? (
+                <Box
+                  component="img"
+                  src="/logo/iconlogo.png"
+                  alt=""
+                  sx={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 1,
+                    objectFit: 'contain',
+                    flexShrink: 0,
+                    position: 'relative',
+                    zIndex: 1,
+                  }}
+                />
+              ) : (
+                <MenuIcon sx={{ 
+                  fontSize: 18, 
+                  color: 'primary.main',
+                }} />
+              )}
+            </Box>
+          )}
+
+          {/* Logo when expanded or mobile */}
           {(isExpanded || isMobile) && (
-            <motion.div
-              initial={{ opacity: 0, width: 0 }}
-              animate={{ opacity: 1, width: 'auto' }}
-              exit={{ opacity: 0, width: 0 }}
-              transition={{ 
-                duration: 0.3,
-                ease: [0.4, 0.0, 0.2, 1],
-                opacity: { duration: 0.2 },
-                width: { duration: 0.3 }
+            <Box
+              sx={{
+                width: 32,
+                height: 32,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                position: 'relative',
               }}
             >
-              <Typography variant="h6" fontWeight="bold" noWrap>
-                {appConfig.name}
-              </Typography>
-            </motion.div>
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ duration: 0.3 }}
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Box
+                  component="img"
+                  src="/logo/iconlogo.png"
+                  alt=""
+                  sx={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 1,
+                    objectFit: 'contain',
+                    flexShrink: 0,
+                    position: 'relative',
+                    zIndex: 1,
+                  }}
+                />
+              </motion.div>
+            </Box>
           )}
-        </AnimatePresence>
+
+          <AnimatePresence mode="wait">
+            {(isExpanded || isMobile) && (
+              <motion.div
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: 1, width: 'auto' }}
+                exit={{ opacity: 0, width: 0 }}
+                transition={{ 
+                  duration: 0.2,
+                  delay: 0.15, // Wait for sidebar expansion to complete
+                  ease: "easeOut"
+                }}
+              >
+                <Typography variant="h6" fontWeight="bold" noWrap>
+                  {appConfig.name}
+                </Typography>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </Box>
+        
+        {/* Toggle Button (Desktop only - shown when expanded) */}
+        {!isMobile && isExpanded && (
+          <IconButton
+            onClick={toggleSidebar}
+            size="small"
+            sx={{
+              width: 28,
+              height: 28,
+              flexShrink: 0,
+              bgcolor: 'transparent',
+              border: '1px solid',
+              borderColor: 'divider',
+              '&:hover': {
+                bgcolor: 'action.hover',
+                borderColor: 'primary.main',
+              },
+            }}
+          >
+            <MenuIcon sx={{ fontSize: 16 }} />
+          </IconButton>
+        )}
       </Box>
 
       {/* New Chat Button */}
@@ -282,15 +331,10 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
                 </ListItemIcon>
                 <AnimatePresence mode="wait">
                   <motion.div
-                    initial={{ opacity: 0, width: 0 }}
-                    animate={{ opacity: 1, width: 'auto' }}
-                    exit={{ opacity: 0, width: 0 }}
-                    transition={{ 
-                      duration: 0.3,
-                      ease: [0.4, 0.0, 0.2, 1],
-                      opacity: { duration: 0.2 },
-                      width: { duration: 0.3 }
-                    }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.1 }}
                     style={{
                       overflow: 'hidden',
                       whiteSpace: 'nowrap',
@@ -331,12 +375,12 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
         </AnimatePresence>
 
         <List sx={{ px: 1, overflow: 'auto', flex: 1 }}>
-          {chatSessions.map((session, index) => (
+          {chatSessions.map((session) => (
             <motion.div
               key={session.id}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.3, delay: index * 0.1 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.1 }}
             >
               <ListItemButton
                 selected={selectedSession === session.id}
@@ -395,15 +439,10 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
                       </ListItemIcon>
                       <AnimatePresence mode="wait">
                         <motion.div
-                          initial={{ opacity: 0, width: 0 }}
-                          animate={{ opacity: 1, width: '100%' }}
-                          exit={{ opacity: 0, width: 0 }}
-                          transition={{ 
-                            duration: 0.3,
-                            ease: [0.4, 0.0, 0.2, 1],
-                            opacity: { duration: 0.2 },
-                            width: { duration: 0.3 }
-                          }}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.1 }}
                           style={{
                             overflow: 'hidden',
                             flex: 1,
@@ -490,15 +529,10 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
                   </ListItemIcon>
                   <AnimatePresence mode="wait">
                     <motion.div
-                      initial={{ opacity: 0, width: 0 }}
-                      animate={{ opacity: 1, width: 'auto' }}
-                      exit={{ opacity: 0, width: 0 }}
-                      transition={{ 
-                        duration: 0.3,
-                        ease: [0.4, 0.0, 0.2, 1],
-                        opacity: { duration: 0.2 },
-                        width: { duration: 0.3 }
-                      }}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.1 }}
                       style={{
                         overflow: 'hidden',
                         whiteSpace: 'nowrap',
@@ -613,15 +647,10 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
                     </ListItemIcon>
                     <AnimatePresence mode="wait">
                       <motion.div
-                        initial={{ opacity: 0, width: 0 }}
-                        animate={{ opacity: 1, width: 'auto' }}
-                        exit={{ opacity: 0, width: 0 }}
-                        transition={{ 
-                          duration: 0.3,
-                          ease: [0.4, 0.0, 0.2, 1],
-                          opacity: { duration: 0.2 },
-                          width: { duration: 0.3 }
-                        }}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.1 }}
                         style={{
                           overflow: 'hidden',
                           whiteSpace: 'nowrap',
@@ -693,9 +722,9 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
           }}
         >
           <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ duration: 0.3 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.1 }}
           >
             <IconButton
               onClick={toggleMobileDrawer}
@@ -721,12 +750,10 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
             width: isExpanded ? SIDEBAR_WIDTH_EXPANDED : SIDEBAR_WIDTH_COLLAPSED,
           }}
           transition={{ 
-            duration: 0.4, 
-            ease: [0.4, 0.0, 0.2, 1], // Material Design easing curve
+            duration: 0.15, 
+            ease: "easeOut",
             type: "tween"
           }}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
           style={{
             position: 'relative',
             zIndex: theme.zIndex.drawer,

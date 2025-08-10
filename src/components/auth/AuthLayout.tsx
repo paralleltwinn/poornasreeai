@@ -324,9 +324,9 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({
                   }}
                 >
                   <motion.div
-                    animate={{ rotate: 360 }}
+                    animate={{ rotate: [0, 360] }}
                     transition={{
-                      duration: 1,
+                      duration: 1.5,
                       repeat: Infinity,
                       ease: 'linear',
                     }}

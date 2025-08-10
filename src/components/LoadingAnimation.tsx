@@ -12,46 +12,8 @@ interface LoadingAnimationProps {
 
 const LoadingAnimation = ({ 
   size = 48, 
-  duration = 1.5, 
-  pauseDuration = 0.5 
+  duration = 1.5 
 }: LoadingAnimationProps) => {
-  // Animation that rotates, pauses, rotates, pauses
-  const rotateAnimation = {
-    rotate: [0, 360, 360, 720, 720, 1080],
-    transition: {
-      duration: duration * 2 + pauseDuration * 2,
-      repeat: Infinity,
-      ease: [0.4, 0, 0.2, 1], // Material Design easing
-      times: [0, 0.3, 0.5, 0.8, 0.9, 1], // Control timing of each rotation phase
-    }
-  };
-
-  // Subtle scale animation for breathing effect
-  const scaleAnimation = {
-    scale: [1, 1.05, 1, 1.05, 1],
-    transition: {
-      duration: duration * 2 + pauseDuration * 2,
-      repeat: Infinity,
-      ease: "easeInOut",
-    }
-  };
-
-  // Glow effect animation - DISABLED to prevent white background
-  // const glowAnimation = {
-  //   boxShadow: [
-  //     `0 0 0px rgba(25, 118, 210, 0)`,
-  //     `0 0 20px rgba(25, 118, 210, 0.3)`,
-  //     `0 0 0px rgba(25, 118, 210, 0)`,
-  //     `0 0 20px rgba(25, 118, 210, 0.3)`,
-  //     `0 0 0px rgba(25, 118, 210, 0)`,
-  //   ],
-  //   transition: {
-  //     duration: duration * 2 + pauseDuration * 2,
-  //     repeat: Infinity,
-  //     ease: "easeInOut",
-  //   }
-  // };
-
   return (
     <Box
       sx={{
@@ -65,7 +27,15 @@ const LoadingAnimation = ({
       }}
     >
       <motion.div
-        animate={rotateAnimation}
+        animate={{
+          rotate: 360,
+        }}
+        transition={{
+          duration: duration,
+          repeat: Infinity,
+          ease: "linear",
+          repeatType: "loop",
+        }}
         style={{
           width: size,
           height: size,
@@ -76,41 +46,28 @@ const LoadingAnimation = ({
           background: 'none',
         }}
       >
-        <motion.div
-          animate={scaleAnimation}
-          style={{
+        <Box
+          component="img"
+          src="/logo/iconlogo.png"
+          alt={`${appConfig.name} Loading`}
+          sx={{
             width: size,
             height: size,
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            backgroundColor: 'transparent',
-            background: 'none',
-          }}
-        >
-          <Box
-            component="img"
-            src="/logo/iconlogo.png"
-            alt={`${appConfig.name} Loading`}
-            sx={{
-              width: size,
-              height: size,
-              objectFit: 'contain',
+            objectFit: 'contain',
+            backgroundColor: 'transparent !important',
+            background: 'none !important',
+            border: 'none',
+            outline: 'none',
+            boxShadow: 'none !important',
+            '&::before, &::after': {
+              display: 'none !important',
+            },
+            '& img': {
               backgroundColor: 'transparent !important',
               background: 'none !important',
-              border: 'none',
-              outline: 'none',
-              boxShadow: 'none !important',
-              '&::before, &::after': {
-                display: 'none !important',
-              },
-              '& img': {
-                backgroundColor: 'transparent !important',
-                background: 'none !important',
-              },
-            }}
-          />
-        </motion.div>
+            },
+          }}
+        />
       </motion.div>
     </Box>
   );

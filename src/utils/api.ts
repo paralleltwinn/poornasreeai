@@ -247,4 +247,4 @@ export const isTokenExpired = (token: string): boolean => {
   return (decoded.exp as number) < currentTime;
 };
 
-export { APIError };
+export { APIError, makeRequest };

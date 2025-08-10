@@ -17,6 +17,7 @@ import {
   CardContent,
   Divider,
   alpha,
+  CircularProgress,
   Grid,
   List,
   ListItem,
@@ -56,7 +57,6 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { appConfig } from '../config/app';
-import LoadingAnimation from './LoadingAnimation';
 import { 
   chatWithAI, 
   searchKnowledgeBase, 
@@ -631,7 +631,7 @@ const ChatPage = () => {
                 }}
               >
                 {isSavingConversation ? (
-                  <LoadingAnimation size={20} />
+                  <CircularProgress size={20} />
                 ) : (
                   <AddIcon />
                 )}
@@ -945,7 +945,7 @@ const ChatPage = () => {
               }}
             >
               {isSavingConversation ? (
-                <LoadingAnimation size={20} />
+                <CircularProgress size={20} />
               ) : (
                 <AddIcon />
               )}
@@ -1114,7 +1114,7 @@ const ChatPage = () => {
                     }}
                   >
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <LoadingAnimation size={16} />
+                      <CircularProgress size={16} />
                       <Typography variant="body2" color="text.secondary">
                         Thinking...
                       </Typography>
@@ -1241,7 +1241,7 @@ const ChatPage = () => {
                   }}
                 >
                   {isTyping ? (
-                    <LoadingAnimation size={20} />
+                    <CircularProgress size={20} sx={{ color: 'white' }} />
                   ) : (
                     <SendIcon fontSize="small" />
                   )}
