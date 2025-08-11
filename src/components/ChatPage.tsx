@@ -14,8 +14,6 @@ import {
   Tooltip,
   Stack,
   Card,
-  CardContent,
-  Divider,
   alpha,
   Grid,
   List,
@@ -26,30 +24,14 @@ import {
 import {
   Send as SendIcon,
   Psychology as PsychologyIcon,
-  Search as SearchIcon,
-  AutoAwesome as AutoAwesomeIcon,
-  Lightbulb as LightbulbIcon,
-  Science as ScienceIcon,
-  Business as BusinessIcon,
   Person as PersonIcon,
   Add as AddIcon,
-  Chat as ChatIcon,
   ContentCopy as ContentCopyIcon,
   Check as CheckIcon,
   FormatListBulleted as FormatListBulletedIcon,
-  ViewWeek as ViewWeekIcon,
   Tune as TuneIcon,
-  Menu as MenuIcon,
-  MoreVert as MoreVertIcon,
-  Mic as MicIcon,
   AttachFile as AttachFileIcon,
   SmartToy as SmartToyIcon,
-  RocketLaunch as RocketLaunchIcon,
-  Bolt,
-  AutoFixHigh as AutoFixHighIcon,
-  Star as SparklesIcon,
-  Settings as SettingsIcon,
-  History as HistoryIcon,
   CheckCircle as CheckCircleIcon,
   Build as BuildIcon,
 } from '@mui/icons-material';
@@ -61,7 +43,6 @@ import {
   chatWithAI, 
   searchKnowledgeBase, 
   checkAIHealth,
-  generateSuggestions,
   formatResponseWithSources,
   type ChatRequest,
 } from '../utils/aiApi';
@@ -71,7 +52,7 @@ import {
   saveMessage,
   generateConversationTitle,
 } from '../utils/chatHistoryApi';
-import { Message, Suggestion } from '../types/chat';
+import { Message } from '../types/chat';
 
 // Parse AI structured troubleshooting response (concise PDF-style)
 interface ParsedStructuredResponse {
@@ -127,39 +108,39 @@ const StructuredTroubleshootingView = ({ parsed }: { parsed: ParsedStructuredRes
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, ease: "easeOut" }}
     >
-      <Stack spacing={3} sx={{ mt: 2 }}>
+      <Stack spacing={2} sx={{ mt: 1.5 }}>
         {parsed.actionRequired && (
           <Card 
             elevation={1}
             sx={{ 
-              p: 3, 
-              borderRadius: 2,
+              p: 2, 
+              borderRadius: 1.5,
               border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
               bgcolor: alpha(theme.palette.primary.main, 0.02),
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
               <Avatar
                 sx={{
                   bgcolor: theme.palette.primary.main,
-                  width: 32,
-                  height: 32,
+                  width: 24,
+                  height: 24,
                 }}
               >
-                <FormatListBulletedIcon sx={{ fontSize: 18 }} />
+                <FormatListBulletedIcon sx={{ fontSize: 14 }} />
               </Avatar>
-              <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1rem' }}>
+              <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '0.9rem' }}>
                 Action Required
               </Typography>
             </Box>
             <List dense>
               {parsed.actionRequired.map((action, i) => (
-                <ListItem key={i} sx={{ pl: 0 }}>
-                  <ListItemIcon sx={{ minWidth: 32 }}>
+                <ListItem key={i} sx={{ pl: 0, py: 0.25 }}>
+                  <ListItemIcon sx={{ minWidth: 24 }}>
                     <Box
                       sx={{
-                        width: 8,
-                        height: 8,
+                        width: 6,
+                        height: 6,
                         borderRadius: '50%',
                         bgcolor: theme.palette.primary.main,
                       }}
@@ -169,7 +150,7 @@ const StructuredTroubleshootingView = ({ parsed }: { parsed: ParsedStructuredRes
                     primary={action}
                     primaryTypographyProps={{
                       variant: 'body2',
-                      sx: { fontSize: '0.9rem', lineHeight: 1.5 }
+                      sx: { fontSize: '0.85rem', lineHeight: 1.4 }
                     }}
                   />
                 </ListItem>
@@ -182,27 +163,27 @@ const StructuredTroubleshootingView = ({ parsed }: { parsed: ParsedStructuredRes
           <Card 
             elevation={1}
             sx={{ 
-              p: 3, 
-              borderRadius: 2,
+              p: 2, 
+              borderRadius: 1.5,
               border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
               bgcolor: alpha(theme.palette.secondary.main, 0.02),
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
               <Avatar
                 sx={{
                   bgcolor: theme.palette.secondary.main,
-                  width: 32,
-                  height: 32,
+                  width: 24,
+                  height: 24,
                 }}
               >
-                <BuildIcon sx={{ fontSize: 18 }} />
+                <BuildIcon sx={{ fontSize: 14 }} />
               </Avatar>
-              <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1rem' }}>
+              <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '0.9rem' }}>
                 Tools Needed
               </Typography>
             </Box>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
               {parsed.toolsNeeded.map((tool, i) => (
                 <Chip 
                   key={i}
@@ -210,7 +191,8 @@ const StructuredTroubleshootingView = ({ parsed }: { parsed: ParsedStructuredRes
                   variant="outlined"
                   size="small"
                   sx={{ 
-                    fontSize: '0.8rem',
+                    fontSize: '0.75rem',
+                    height: 24,
                     borderColor: alpha(theme.palette.secondary.main, 0.3),
                     color: theme.palette.secondary.main,
                   }} 
@@ -224,38 +206,38 @@ const StructuredTroubleshootingView = ({ parsed }: { parsed: ParsedStructuredRes
           <Card 
             elevation={1}
             sx={{ 
-              p: 3, 
-              borderRadius: 2,
+              p: 2, 
+              borderRadius: 1.5,
               border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
               bgcolor: alpha(theme.palette.info.main, 0.02),
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
               <Avatar
                 sx={{
                   bgcolor: theme.palette.info.main,
-                  width: 32,
-                  height: 32,
+                  width: 24,
+                  height: 24,
                 }}
               >
-                <PsychologyIcon sx={{ fontSize: 18 }} />
+                <PsychologyIcon sx={{ fontSize: 14 }} />
               </Avatar>
-              <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1rem' }}>
+              <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '0.9rem' }}>
                 Procedure
               </Typography>
             </Box>
             <List dense>
               {parsed.procedure.map((step, i) => (
-                <ListItem key={i} sx={{ pl: 0, alignItems: 'flex-start' }}>
-                  <ListItemIcon sx={{ minWidth: 40 }}>
+                <ListItem key={i} sx={{ pl: 0, alignItems: 'flex-start', py: 0.25 }}>
+                  <ListItemIcon sx={{ minWidth: 32 }}>
                     <Chip 
                       label={step.step} 
                       color="info" 
                       size="small"
                       sx={{ 
-                        minWidth: 32,
-                        height: 24, 
-                        fontSize: '0.75rem',
+                        minWidth: 24,
+                        height: 20, 
+                        fontSize: '0.7rem',
                         fontWeight: 600,
                       }} 
                     />
@@ -264,7 +246,7 @@ const StructuredTroubleshootingView = ({ parsed }: { parsed: ParsedStructuredRes
                     primary={step.detail}
                     primaryTypographyProps={{
                       variant: 'body2',
-                      sx: { fontSize: '0.9rem', lineHeight: 1.5, mt: 0.5 }
+                      sx: { fontSize: '0.85rem', lineHeight: 1.4, mt: 0.25 }
                     }}
                   />
                 </ListItem>
@@ -277,34 +259,34 @@ const StructuredTroubleshootingView = ({ parsed }: { parsed: ParsedStructuredRes
           <Card 
             elevation={1}
             sx={{ 
-              p: 3, 
-              borderRadius: 2,
+              p: 2, 
+              borderRadius: 1.5,
               border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
               bgcolor: alpha(theme.palette.success.main, 0.02),
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
               <Avatar
                 sx={{
                   bgcolor: theme.palette.success.main,
-                  width: 32,
-                  height: 32,
+                  width: 24,
+                  height: 24,
                 }}
               >
-                <CheckCircleIcon sx={{ fontSize: 18 }} />
+                <CheckCircleIcon sx={{ fontSize: 14 }} />
               </Avatar>
-              <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1rem' }}>
+              <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '0.9rem' }}>
                 Resolution
               </Typography>
             </Box>
             <List dense>
               {parsed.resolution.map((resolution, i) => (
-                <ListItem key={i} sx={{ pl: 0 }}>
-                  <ListItemIcon sx={{ minWidth: 32 }}>
+                <ListItem key={i} sx={{ pl: 0, py: 0.25 }}>
+                  <ListItemIcon sx={{ minWidth: 24 }}>
                     <Box
                       sx={{
-                        width: 8,
-                        height: 8,
+                        width: 6,
+                        height: 6,
                         borderRadius: '50%',
                         bgcolor: theme.palette.success.main,
                       }}
@@ -314,7 +296,7 @@ const StructuredTroubleshootingView = ({ parsed }: { parsed: ParsedStructuredRes
                     primary={resolution}
                     primaryTypographyProps={{
                       variant: 'body2',
-                      sx: { fontSize: '0.9rem', lineHeight: 1.5 }
+                      sx: { fontSize: '0.85rem', lineHeight: 1.4 }
                     }}
                   />
                 </ListItem>
@@ -328,12 +310,10 @@ const StructuredTroubleshootingView = ({ parsed }: { parsed: ParsedStructuredRes
 };
 
 const ChatPage = () => {
-  const theme = useTheme();
   const { showError, showSuccess } = useSnackbar();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [conversationId, setConversationId] = useState<string>('');
   const [isConnected, setIsConnected] = useState(true);
   const [isSavingConversation, setIsSavingConversation] = useState(false);
@@ -366,16 +346,6 @@ const ChatPage = () => {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
   }, [messages, isTyping]);
-
-  // Initialize suggestions
-  useEffect(() => {
-    setSuggestions([
-      { id: '1', text: 'What information is available in the trained data?', category: 'trending' },
-      { id: '2', text: 'Search for specific topics in the knowledge base', category: 'trending' },
-      { id: '3', text: 'Tell me about the latest features', category: 'trending' },
-      { id: '4', text: 'How can I get the most accurate results?', category: 'related' },
-    ]);
-  }, []);
 
   const handleSendMessage = useCallback(async (content: string) => {
     if (!content.trim() || isTyping) return;
@@ -471,14 +441,6 @@ const ChatPage = () => {
         }
       }
 
-      // Generate contextual suggestions
-      const newSuggestions = generateSuggestions(content).map((text, index) => ({
-        id: `suggestion_${Date.now()}_${index}`,
-        text,
-        category: 'follow-up' as const,
-      }));
-      setSuggestions(newSuggestions);
-
       showSuccess('Response generated successfully');
 
     } catch (error) {
@@ -501,10 +463,6 @@ const ChatPage = () => {
       setIsTyping(false);
     }
   }, [conversationId, isConnected, isTyping, conciseMode, showError, showSuccess]);
-
-  const handleSuggestionClick = useCallback((suggestion: Suggestion) => {
-    handleSendMessage(suggestion.text);
-  }, [handleSendMessage]);
 
   const handleKeyPress = useCallback((event: React.KeyboardEvent) => {
     if (event.key === 'Enter' && !event.shiftKey) {
@@ -536,12 +494,7 @@ const ChatPage = () => {
       setMessages([]);
       setConversationId('');
       setInputValue('');
-      setSuggestions([
-        { id: '1', text: 'What information is available in the trained data?', category: 'trending' },
-        { id: '2', text: 'Search for specific topics in the knowledge base', category: 'trending' },
-        { id: '3', text: 'Tell me about the latest features', category: 'trending' },
-        { id: '4', text: 'How can I get the most accurate results?', category: 'related' },
-      ]);
+
 
       // Focus input for new conversation
       setTimeout(() => {
@@ -566,310 +519,371 @@ const ChatPage = () => {
     });
   }, [showError, showSuccess]);
 
-  // Welcome screen for new conversations
+  // Welcome screen for new conversations - Perplexity-style design
   if (messages.length === 0) {
     return (
       <Box sx={{ 
         height: '100vh', 
         display: 'flex', 
         flexDirection: 'column',
-        bgcolor: '#ffffff',
+        bgcolor: '#fafafa',
+        background: 'linear-gradient(135deg, #fafafa 0%, #f8fafc 100%)',
       }}>
-        {/* Professional Header */}
-        <Paper 
-          elevation={1}
+        {/* Minimal Header - Perplexity Style */}
+        <Box 
           sx={{ 
-            px: 4,
-            py: 3,
-            bgcolor: '#ffffff',
-            borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+            px: { xs: 2, md: 3 },
+            py: 1.5,
+            bgcolor: 'transparent',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Avatar
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box
+              component="img"
+              src="/logo/iconlogo.png"
+              alt={`${appConfig.name} Logo`}
               sx={{
-                bgcolor: theme.palette.primary.main,
-                width: 40,
-                height: 40,
+                height: 24,
+                width: 24,
+                objectFit: 'contain',
+              }}
+            />
+            <Typography 
+              variant="h6" 
+              fontWeight={700} 
+              sx={{ 
+                color: '#1a1a1a',
+                fontSize: '1.1rem',
+                letterSpacing: '-0.02em',
               }}
             >
-              <SmartToyIcon sx={{ fontSize: 24 }} />
-            </Avatar>
-            <Box>
-              <Typography variant="h6" fontWeight={600} color="text.primary">
-                AI Assistant
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Powered by Advanced Intelligence
-              </Typography>
-            </Box>
+              {appConfig.name}
+            </Typography>
           </Box>
           
-          <Stack direction="row" spacing={2} alignItems="center">
-            <Tooltip title={conciseMode ? 'Concise mode ON' : 'Concise mode OFF'}>
-              <Chip 
-                icon={<TuneIcon sx={{ fontSize: 16 }} />}
-                label={conciseMode ? 'Concise' : 'Full'}
-                size="medium"
-                variant={conciseMode ? 'filled' : 'outlined'}
-                color={conciseMode ? 'primary' : 'default'}
-                onClick={() => setConciseMode(v => !v)}
-                sx={{ cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500 }}
-              />
-            </Tooltip>
-            <Tooltip title="New conversation">
-              <IconButton
-                onClick={handleNewChat}
-                disabled={isSavingConversation}
-                sx={{ 
-                  bgcolor: alpha(theme.palette.primary.main, 0.1),
-                  color: theme.palette.primary.main,
-                  '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.2) },
-                }}
-              >
-                {isSavingConversation ? (
-                  <LoadingAnimation size={20} />
-                ) : (
-                  <AddIcon />
-                )}
-              </IconButton>
-            </Tooltip>
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<TuneIcon sx={{ fontSize: 14 }} />}
+              onClick={() => setConciseMode(v => !v)}
+              sx={{ 
+                borderRadius: 1.5,
+                textTransform: 'none',
+                fontSize: '0.8rem',
+                fontWeight: 500,
+                borderColor: alpha('#1a1a1a', 0.15),
+                color: '#1a1a1a',
+                minWidth: 'auto',
+                px: 1.5,
+                py: 0.5,
+                '&:hover': {
+                  borderColor: alpha('#1a1a1a', 0.25),
+                  bgcolor: alpha('#1a1a1a', 0.02),
+                },
+              }}
+            >
+              {conciseMode ? 'Concise' : 'Detailed'}
+            </Button>
+            <IconButton
+              onClick={handleNewChat}
+              disabled={isSavingConversation}
+              size="small"
+              sx={{ 
+                color: '#666',
+                width: 32,
+                height: 32,
+                '&:hover': { 
+                  bgcolor: alpha('#1a1a1a', 0.05),
+                  color: '#1a1a1a',
+                },
+              }}
+            >
+              {isSavingConversation ? (
+                <LoadingAnimation size={16} />
+              ) : (
+                <AddIcon sx={{ fontSize: 18 }} />
+              )}
+            </IconButton>
           </Stack>
-        </Paper>
+        </Box>
 
-        {/* Welcome Content */}
+        {/* Centered Content - Perplexity Style */}
         <Box sx={{ 
           flex: 1,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          maxWidth: '1000px',
+          maxWidth: '700px',
           mx: 'auto',
-          px: 4,
-          py: 6,
+          px: { xs: 2, md: 3 },
+          py: { xs: 2, md: 3 },
         }}>
+          {/* Hero Section */}
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            style={{ textAlign: 'center', marginBottom: '48px' }}
+            transition={{ duration: 0.8 }}
+            style={{ textAlign: 'center', marginBottom: '32px', width: '100%' }}
           >
-            <Box
-              component="img"
-              src="/logo/fulllogo.png"
-              alt={`${appConfig.name} Logo`}
-              sx={{
-                height: 64,
-                objectFit: 'contain',
-                mb: 3,
-              }}
-            />
             <Typography 
-              variant="h3" 
-              fontWeight={700}
+              variant="h1" 
               sx={{ 
-                color: theme.palette.text.primary,
+                fontSize: { xs: '2rem', md: '2.8rem', lg: '3.2rem' },
+                fontWeight: 700,
+                color: '#1a1a1a',
                 mb: 2,
-                fontSize: { xs: '2rem', md: '2.5rem' },
+                letterSpacing: '-0.04em',
+                lineHeight: 1.1,
               }}
             >
-              How can I help you today?
+              Where knowledge begins
             </Typography>
             <Typography 
               variant="h6" 
               sx={{ 
-                color: theme.palette.text.secondary, 
+                color: '#666666', 
                 fontWeight: 400,
+                fontSize: { xs: '1rem', md: '1.1rem' },
                 mb: 4,
-                maxWidth: '600px',
+                maxWidth: '500px',
                 mx: 'auto',
+                lineHeight: 1.5,
               }}
             >
-              I&apos;m your intelligent assistant, ready to help with troubleshooting, 
-              analysis, and answering questions based on your trained data.
+              Ask anything and get instant, intelligent answers from your knowledge base
             </Typography>
+
+            {/* Main Search Input - Perplexity Style */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+            >
+              <Box sx={{ 
+                position: 'relative',
+                maxWidth: '600px',
+                mx: 'auto',
+                mb: 3,
+              }}>
+                <TextField
+                  ref={inputRef}
+                  fullWidth
+                  multiline
+                  maxRows={4}
+                  placeholder="Ask me anything..."
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  disabled={!isConnected}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: '16px',
+                      bgcolor: '#ffffff',
+                      fontSize: '15px',
+                      border: '1px solid #e5e7eb',
+                      boxShadow: '0 3px 24px rgba(0, 0, 0, 0.08)',
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        borderColor: '#cbd5e1',
+                        boxShadow: '0 6px 32px rgba(0, 0, 0, 0.12)',
+                      },
+                      '&.Mui-focused': {
+                        borderColor: '#3b82f6',
+                        boxShadow: '0 6px 32px rgba(59, 130, 246, 0.15)',
+                      },
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        border: 'none',
+                      },
+                    },
+                    '& .MuiInputBase-input': {
+                      py: 2.5,
+                      px: 3,
+                      fontSize: '15px',
+                      '&::placeholder': {
+                        color: '#9ca3af',
+                        opacity: 1,
+                      },
+                    },
+                  }}
+                  InputProps={{
+                    startAdornment: (
+                      <Box sx={{ mr: 0.5, display: 'flex', gap: 0.5 }}>
+                        <IconButton 
+                          size="small" 
+                          sx={{ 
+                            color: '#9ca3af',
+                            width: 32,
+                            height: 32,
+                            '&:hover': { color: '#6b7280' },
+                          }}
+                        >
+                          <AttachFileIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      </Box>
+                    ),
+                    endAdornment: (
+                      <IconButton
+                        onClick={() => handleSendMessage(inputValue)}
+                        disabled={!inputValue.trim() || !isConnected}
+                        sx={{ 
+                          bgcolor: inputValue.trim() && isConnected ? '#3b82f6' : '#f3f4f6',
+                          color: inputValue.trim() && isConnected ? 'white' : '#9ca3af',
+                          width: 36,
+                          height: 36,
+                          mr: 0.5,
+                          borderRadius: '10px',
+                          transition: 'all 0.2s ease',
+                          '&:hover': {
+                            bgcolor: inputValue.trim() && isConnected ? '#2563eb' : '#e5e7eb',
+                            transform: inputValue.trim() && isConnected ? 'scale(1.05)' : 'none',
+                          },
+                          '&.Mui-disabled': {
+                            bgcolor: '#f3f4f6',
+                            color: '#d1d5db',
+                          },
+                        }}
+                      >
+                        <SendIcon sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    ),
+                  }}
+                />
+              </Box>
+            </motion.div>
           </motion.div>
 
-          {/* Quick Action Cards */}
+          {/* Quick Actions - Perplexity Style */}
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
             style={{ width: '100%' }}
           >
-            <Grid container spacing={3} sx={{ mb: 6 }}>
+            <Typography 
+              variant="subtitle2" 
+              sx={{ 
+                color: '#6b7280',
+                fontSize: '0.85rem',
+                fontWeight: 500,
+                mb: 2,
+                textAlign: 'center',
+              }}
+            >
+              Try asking about
+            </Typography>
+            <Grid container spacing={1.5} sx={{ mb: 3 }}>
               {[
                 { 
-                  icon: <RocketLaunchIcon sx={{ fontSize: 32, color: theme.palette.primary.main }} />, 
                   title: "Technical Support", 
-                  desc: "Get instant troubleshooting help and technical guidance",
-                  text: "Help me troubleshoot a technical issue"
+                  text: "Help me troubleshoot a technical issue",
+                  icon: "🔧"
                 },
                 { 
-                  icon: <AutoFixHighIcon sx={{ fontSize: 32, color: theme.palette.secondary.main }} />, 
-                  title: "Smart Analysis", 
-                  desc: "Analyze complex data and generate actionable insights",
-                  text: "Analyze this data for me"
+                  title: "Data Analysis", 
+                  text: "Analyze this data for insights",
+                  icon: "📊"
                 },
                 { 
-                  icon: <ScienceIcon sx={{ fontSize: 32, color: theme.palette.info.main }} />, 
                   title: "Knowledge Search", 
-                  desc: "Search through your trained documents and knowledge base",
-                  text: "Search my knowledge base"
+                  text: "Search my knowledge base",
+                  icon: "🔍"
                 },
                 { 
-                  icon: <SparklesIcon sx={{ fontSize: 32, color: theme.palette.success.main }} />, 
                   title: "Creative Solutions", 
-                  desc: "Generate innovative solutions and creative approaches",
-                  text: "Help me find a creative solution"
+                  text: "Help me find a creative solution",
+                  icon: "💡"
                 },
               ].map((item, index) => (
-                <Grid item xs={12} md={6} key={index}>
+                <Grid item xs={12} sm={6} key={index}>
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4, delay: 0.3 + index * 0.1 }}
-                    whileHover={{ y: -5 }}
+                    transition={{ duration: 0.6, delay: 0.5 + index * 0.1 }}
+                    whileHover={{ y: -2 }}
                   >
-                    <Card
+                    <Paper
                       onClick={() => handleSendMessage(item.text)}
+                      elevation={0}
                       sx={{
-                        p: 3,
+                        p: 2,
                         cursor: 'pointer',
-                        height: '100%',
-                        border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                        bgcolor: '#ffffff',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '12px',
                         transition: 'all 0.3s ease',
                         '&:hover': {
-                          border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
-                          boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, 0.1)}`,
+                          borderColor: '#cbd5e1',
+                          boxShadow: '0 6px 24px rgba(0, 0, 0, 0.08)',
+                          transform: 'translateY(-2px)',
                         },
                       }}
                     >
-                      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                        <Box sx={{ mt: 0.5 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <Typography sx={{ fontSize: '1.2rem' }}>
                           {item.icon}
-                        </Box>
-                        <Box sx={{ flex: 1 }}>
-                          <Typography variant="h6" fontWeight={600} sx={{ mb: 1, fontSize: '1.1rem' }}>
-                            {item.title}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.5 }}>
-                            {item.desc}
-                          </Typography>
-                        </Box>
+                        </Typography>
+                        <Typography 
+                          variant="body1" 
+                          fontWeight={500}
+                          sx={{ 
+                            color: '#1a1a1a',
+                            fontSize: '0.9rem',
+                          }}
+                        >
+                          {item.title}
+                        </Typography>
                       </Box>
-                    </Card>
+                    </Paper>
                   </motion.div>
                 </Grid>
               ))}
             </Grid>
           </motion.div>
-        </Box>
 
-        {/* Professional Input Area */}
-        <Paper 
-          elevation={1}
-          sx={{ 
-            bgcolor: '#ffffff',
-            borderTop: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-            px: 4,
-            py: 3,
-          }}
-        >
-          <Box sx={{ maxWidth: '800px', mx: 'auto' }}>
-            <TextField
-              ref={inputRef}
-              fullWidth
-              multiline
-              maxRows={4}
-              placeholder="Ask me anything..."
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyPress={handleKeyPress}
-              disabled={!isConnected}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 3,
-                  bgcolor: alpha(theme.palette.background.paper, 0.8),
-                  fontSize: '16px',
-                  '&:hover': {
-                    '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: alpha(theme.palette.primary.main, 0.3),
-                    },
-                  },
-                  '&.Mui-focused': {
-                    '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: theme.palette.primary.main,
-                      borderWidth: 2,
-                    },
-                  },
-                },
-                '& .MuiInputBase-input': {
-                  py: 2,
-                  px: 3,
-                },
+          {/* Footer */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8, delay: 0.8 }}
+          >
+            <Typography 
+              variant="caption" 
+              sx={{ 
+                color: '#9ca3af',
+                fontSize: '0.8rem',
+                textAlign: 'center',
               }}
-              InputProps={{
-                startAdornment: (
-                  <Box sx={{ mr: 1, display: 'flex', gap: 0.5 }}>
-                    <IconButton size="small" sx={{ color: theme.palette.text.secondary }}>
-                      <AttachFileIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton size="small" sx={{ color: theme.palette.text.secondary }}>
-                      <MicIcon fontSize="small" />
-                    </IconButton>
-                  </Box>
-                ),
-                endAdornment: (
-                  <IconButton
-                    onClick={() => handleSendMessage(inputValue)}
-                    disabled={!inputValue.trim() || !isConnected}
-                    sx={{ 
-                      bgcolor: inputValue.trim() && isConnected ? theme.palette.primary.main : alpha(theme.palette.action.disabled, 0.2),
-                      color: 'white',
-                      width: 40,
-                      height: 40,
-                      mr: 1,
-                      '&:hover': {
-                        bgcolor: inputValue.trim() && isConnected ? theme.palette.primary.dark : alpha(theme.palette.action.disabled, 0.3),
-                      },
-                      '&.Mui-disabled': {
-                        bgcolor: alpha(theme.palette.action.disabled, 0.2),
-                        color: alpha(theme.palette.action.disabled, 0.5),
-                      },
-                    }}
-                  >
-                    <SendIcon fontSize="small" />
-                  </IconButton>
-                ),
-              }}
-            />
-          </Box>
-        </Paper>
+            >
+              Powered by advanced AI • {isConnected ? 'Connected' : 'Offline'}
+            </Typography>
+          </motion.div>
+        </Box>
       </Box>
     );
   }
 
-  // Main chat interface (when messages exist)
+  // Main chat interface (when messages exist) - Perplexity Style
   return (
     <Box sx={{ 
       height: '100vh', 
       display: 'flex', 
       flexDirection: 'column',
-      bgcolor: '#ffffff',
+      bgcolor: '#fafafa',
+      background: 'linear-gradient(135deg, #fafafa 0%, #f8fafc 100%)',
     }}>
-      {/* Professional Header */}
-      <Paper 
-        elevation={1}
+      {/* Clean Header - Perplexity Style */}
+      <Box 
         sx={{ 
-          px: 4,
-          py: 3,
-          bgcolor: '#ffffff',
-          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+          px: { xs: 2, md: 3 },
+          py: 1.5,
+          bgcolor: alpha('#ffffff', 0.8),
+          backdropFilter: 'blur(20px)',
+          borderBottom: '1px solid #e5e7eb',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -878,102 +892,123 @@ const ChatPage = () => {
           zIndex: 100,
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Avatar
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box
+            component="img"
+            src="/logo/iconlogo.png"
+            alt={`${appConfig.name} Logo`}
             sx={{
-              bgcolor: theme.palette.primary.main,
-              width: 40,
-              height: 40,
+              height: 24,
+              width: 24,
+              objectFit: 'contain',
+            }}
+          />
+          <Typography 
+            variant="h6" 
+            fontWeight={700} 
+            sx={{ 
+              color: '#1a1a1a',
+              fontSize: '1.1rem',
+              letterSpacing: '-0.02em',
             }}
           >
-            <SmartToyIcon sx={{ fontSize: 24 }} />
-          </Avatar>
-          <Box>
-            <Typography variant="h6" fontWeight={600} color="text.primary">
-              AI Assistant
-            </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              {isConnected ? (
-                <>
-                  <Box sx={{ 
-                    width: 8, 
-                    height: 8, 
-                    borderRadius: '50%', 
-                    bgcolor: '#10b981',
-                  }} />
-                  <Typography variant="caption" color="text.secondary">
-                    Online
-                  </Typography>
-                </>
-              ) : (
-                <>
-                  <Box sx={{ 
-                    width: 8, 
-                    height: 8, 
-                    borderRadius: '50%', 
-                    bgcolor: '#ef4444',
-                  }} />
-                  <Typography variant="caption" color="text.secondary">
-                    Offline
-                  </Typography>
-                </>
-              )}
-            </Box>
+            {appConfig.name}
+          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ml: 1.5 }}>
+            {isConnected ? (
+              <>
+                <Box sx={{ 
+                  width: 5, 
+                  height: 5, 
+                  borderRadius: '50%', 
+                  bgcolor: '#10b981',
+                }} />
+                <Typography variant="caption" sx={{ color: '#6b7280', fontSize: '0.75rem' }}>
+                  Online
+                </Typography>
+              </>
+            ) : (
+              <>
+                <Box sx={{ 
+                  width: 5, 
+                  height: 5, 
+                  borderRadius: '50%', 
+                  bgcolor: '#ef4444',
+                }} />
+                <Typography variant="caption" sx={{ color: '#6b7280', fontSize: '0.75rem' }}>
+                  Offline
+                </Typography>
+              </>
+            )}
           </Box>
         </Box>
         
-        <Stack direction="row" spacing={2} alignItems="center">
-          <Tooltip title={conciseMode ? 'Concise mode ON' : 'Concise mode OFF'}>
-            <Chip 
-              icon={<TuneIcon sx={{ fontSize: 16 }} />}
-              label={conciseMode ? 'Concise' : 'Full'}
-              size="medium"
-              variant={conciseMode ? 'filled' : 'outlined'}
-              color={conciseMode ? 'primary' : 'default'}
-              onClick={() => setConciseMode(v => !v)}
-              sx={{ cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500 }}
-            />
-          </Tooltip>
-          <Tooltip title="New conversation">
-            <IconButton
-              onClick={handleNewChat}
-              disabled={isSavingConversation}
-              sx={{ 
-                bgcolor: alpha(theme.palette.primary.main, 0.1),
-                color: theme.palette.primary.main,
-                '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.2) },
-              }}
-            >
-              {isSavingConversation ? (
-                <LoadingAnimation size={20} />
-              ) : (
-                <AddIcon />
-              )}
-            </IconButton>
-          </Tooltip>
+        <Stack direction="row" spacing={0.5} alignItems="center">
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<TuneIcon sx={{ fontSize: 14 }} />}
+            onClick={() => setConciseMode(v => !v)}
+            sx={{ 
+              borderRadius: 1.5,
+              textTransform: 'none',
+              fontSize: '0.8rem',
+              fontWeight: 500,
+              borderColor: alpha('#1a1a1a', 0.15),
+              color: '#1a1a1a',
+              minWidth: 'auto',
+              px: 1.5,
+              py: 0.5,
+              '&:hover': {
+                borderColor: alpha('#1a1a1a', 0.25),
+                bgcolor: alpha('#1a1a1a', 0.02),
+              },
+            }}
+          >
+            {conciseMode ? 'Concise' : 'Detailed'}
+          </Button>
+          <IconButton
+            onClick={handleNewChat}
+            disabled={isSavingConversation}
+            size="small"
+            sx={{ 
+              color: '#666',
+              width: 32,
+              height: 32,
+              '&:hover': { 
+                bgcolor: alpha('#1a1a1a', 0.05),
+                color: '#1a1a1a',
+              },
+            }}
+          >
+            {isSavingConversation ? (
+              <LoadingAnimation size={16} />
+            ) : (
+              <AddIcon sx={{ fontSize: 18 }} />
+            )}
+          </IconButton>
         </Stack>
-      </Paper>
+      </Box>
 
-      {/* Messages Container */}
+      {/* Messages Container - Perplexity Style */}
       <Box sx={{ 
         flex: 1, 
         overflow: 'auto',
-        bgcolor: alpha(theme.palette.background.default, 0.3),
         '&::-webkit-scrollbar': {
-          width: '8px',
+          width: '6px',
         },
         '&::-webkit-scrollbar-track': {
           background: 'transparent',
         },
         '&::-webkit-scrollbar-thumb': {
-          background: alpha(theme.palette.primary.main, 0.2),
-          borderRadius: '4px',
+          background: alpha('#1a1a1a', 0.15),
+          borderRadius: '3px',
         },
         '&::-webkit-scrollbar-thumb:hover': {
-          background: alpha(theme.palette.primary.main, 0.3),
+          background: alpha('#1a1a1a', 0.25),
         },
       }}>
-        <Box sx={{ maxWidth: '1000px', mx: 'auto', px: 4, py: 3 }}>
+        <Box sx={{ maxWidth: '700px', mx: 'auto', px: { xs: 2, md: 3 }, py: 3 }}>
           <AnimatePresence>
             {messages.map((message, index) => (
               <motion.div
@@ -983,40 +1018,72 @@ const ChatPage = () => {
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.4, delay: index * 0.05 }}
               >
-                <Box sx={{ mb: 3, display: 'flex', gap: 2 }}>
-                  <Avatar
+                <Box sx={{ mb: 4, display: 'flex', gap: 2 }}>
+                  <Box
                     sx={{
-                      width: 36,
-                      height: 36,
-                      bgcolor: message.role === 'user' ? theme.palette.primary.main : theme.palette.secondary.main,
-                      fontSize: '0.9rem',
+                      width: 28,
+                      height: 28,
+                      borderRadius: '6px',
+                      bgcolor: message.role === 'user' ? '#3b82f6' : '#f3f4f6',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                      mt: 0.5,
                     }}
                   >
                     {message.role === 'user' ? (
-                      <PersonIcon sx={{ fontSize: 20 }} />
+                      <PersonIcon sx={{ fontSize: 16, color: 'white' }} />
                     ) : (
-                      <SmartToyIcon sx={{ fontSize: 20 }} />
+                      <SmartToyIcon sx={{ fontSize: 16, color: '#6b7280' }} />
                     )}
-                  </Avatar>
+                  </Box>
                   <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                      <Typography variant="subtitle2" fontWeight={600}>
-                        {message.role === 'user' ? 'You' : 'AI Assistant'}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
+                      <Typography 
+                        variant="subtitle2" 
+                        fontWeight={600}
+                        sx={{ 
+                          color: '#1a1a1a',
+                          fontSize: '0.85rem',
+                        }}
+                      >
+                        {message.role === 'user' ? 'You' : 'Assistant'}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography 
+                        variant="caption" 
+                        sx={{ 
+                          color: '#9ca3af',
+                          fontSize: '0.75rem',
+                        }}
+                      >
                         {message.timestamp.toLocaleTimeString()}
                       </Typography>
+                      <Tooltip title={copiedId === message.id ? 'Copied!' : 'Copy message'}>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleCopyMessage(message.id, message.content)}
+                          sx={{
+                            opacity: 0.5,
+                            '&:hover': { opacity: 1 },
+                            ml: 'auto',
+                            width: 24,
+                            height: 24,
+                          }}
+                        >
+                          {copiedId === message.id ? (
+                            <CheckIcon sx={{ fontSize: 12, color: '#10b981' }} />
+                          ) : (
+                            <ContentCopyIcon sx={{ fontSize: 12 }} />
+                          )}
+                        </IconButton>
+                      </Tooltip>
                     </Box>
-                    <Paper
-                      elevation={1}
+                    <Box
                       sx={{
-                        p: 2.5,
-                        bgcolor: message.role === 'user' 
-                          ? alpha(theme.palette.primary.main, 0.05)
-                          : '#ffffff',
-                        border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-                        borderRadius: 2,
-                        position: 'relative',
+                        color: '#1a1a1a',
+                        fontSize: '0.9rem',
+                        lineHeight: 1.6,
                       }}
                     >
                       {message.role === 'assistant' ? (
@@ -1027,57 +1094,85 @@ const ChatPage = () => {
                               return <StructuredTroubleshootingView parsed={parsed} />;
                             }
                             return (
-                              <Typography variant="body1" sx={{ lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                              <Typography 
+                                variant="body1" 
+                                sx={{ 
+                                  lineHeight: 1.6, 
+                                  whiteSpace: 'pre-wrap',
+                                  color: '#1a1a1a',
+                                  fontSize: '0.9rem',
+                                }}
+                              >
                                 {message.content}
                               </Typography>
                             );
                           })()}
                           
                           {message.sources && message.sources.length > 0 && (
-                            <Box sx={{ mt: 3, pt: 2, borderTop: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
-                              <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1, fontSize: '0.8rem' }}>
-                                Sources:
+                            <Box sx={{ mt: 3, pt: 2, borderTop: '1px solid #e5e7eb' }}>
+                              <Typography 
+                                variant="subtitle2" 
+                                sx={{ 
+                                  color: '#6b7280',
+                                  fontSize: '0.8rem',
+                                  fontWeight: 500,
+                                  mb: 1.5,
+                                }}
+                              >
+                                Sources
                               </Typography>
                               <Stack spacing={1}>
                                 {message.sources.map((source, i) => (
-                                  <Chip
+                                  <Paper
                                     key={i}
-                                    label={`${source.title} (${source.relevance_score?.toFixed(1) || '0'}% match)`}
-                                    size="small"
-                                    variant="outlined"
-                                    sx={{ fontSize: '0.75rem' }}
-                                  />
+                                    elevation={0}
+                                    sx={{
+                                      p: 1.5,
+                                      bgcolor: '#f8fafc',
+                                      border: '1px solid #e5e7eb',
+                                      borderRadius: '6px',
+                                    }}
+                                  >
+                                    <Typography 
+                                      variant="body2"
+                                      sx={{ 
+                                        fontSize: '0.8rem',
+                                        color: '#374151',
+                                        fontWeight: 500,
+                                      }}
+                                    >
+                                      {source.title}
+                                    </Typography>
+                                    {source.relevance_score && (
+                                      <Typography 
+                                        variant="caption"
+                                        sx={{ 
+                                          color: '#9ca3af',
+                                          fontSize: '0.7rem',
+                                        }}
+                                      >
+                                        {source.relevance_score.toFixed(1)}% match
+                                      </Typography>
+                                    )}
+                                  </Paper>
                                 ))}
                               </Stack>
                             </Box>
                           )}
                         </Box>
                       ) : (
-                        <Typography variant="body1" sx={{ lineHeight: 1.6 }}>
+                        <Typography 
+                          variant="body1" 
+                          sx={{ 
+                            lineHeight: 1.6,
+                            color: '#1a1a1a',
+                            fontSize: '0.9rem',
+                          }}
+                        >
                           {message.content}
                         </Typography>
                       )}
-
-                      <Tooltip title={copiedId === message.id ? 'Copied!' : 'Copy message'}>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleCopyMessage(message.id, message.content)}
-                          sx={{
-                            position: 'absolute',
-                            top: 8,
-                            right: 8,
-                            opacity: 0.7,
-                            '&:hover': { opacity: 1 },
-                          }}
-                        >
-                          {copiedId === message.id ? (
-                            <CheckIcon sx={{ fontSize: 16, color: theme.palette.success.main }} />
-                          ) : (
-                            <ContentCopyIcon sx={{ fontSize: 16 }} />
-                          )}
-                        </IconButton>
-                      </Tooltip>
-                    </Paper>
+                    </Box>
                   </Box>
                 </Box>
               </motion.div>
@@ -1090,36 +1185,46 @@ const ChatPage = () => {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
             >
-              <Box sx={{ mb: 3, display: 'flex', gap: 2 }}>
-                <Avatar
+              <Box sx={{ mb: 4, display: 'flex', gap: 2 }}>
+                <Box
                   sx={{
-                    width: 36,
-                    height: 36,
-                    bgcolor: theme.palette.secondary.main,
+                    width: 28,
+                    height: 28,
+                    borderRadius: '6px',
+                    bgcolor: '#f3f4f6',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    mt: 0.5,
                   }}
                 >
-                  <SmartToyIcon sx={{ fontSize: 20 }} />
-                </Avatar>
+                  <SmartToyIcon sx={{ fontSize: 16, color: '#6b7280' }} />
+                </Box>
                 <Box sx={{ flex: 1 }}>
-                  <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
-                    AI Assistant
-                  </Typography>
-                  <Paper
-                    elevation={1}
-                    sx={{
-                      p: 2.5,
-                      bgcolor: '#ffffff',
-                      border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-                      borderRadius: 2,
+                  <Typography 
+                    variant="subtitle2" 
+                    fontWeight={600}
+                    sx={{ 
+                      color: '#1a1a1a',
+                      fontSize: '0.85rem',
+                      mb: 1.5,
                     }}
                   >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <LoadingAnimation size={16} />
-                      <Typography variant="body2" color="text.secondary">
-                        Thinking...
-                      </Typography>
-                    </Box>
-                  </Paper>
+                    Assistant
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <LoadingAnimation size={14} />
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        color: '#9ca3af',
+                        fontSize: '0.85rem',
+                      }}
+                    >
+                      Thinking...
+                    </Typography>
+                  </Box>
                 </Box>
               </Box>
             </motion.div>
@@ -1129,95 +1234,70 @@ const ChatPage = () => {
         </Box>
       </Box>
 
-      {/* Suggestions */}
-      {suggestions.length > 0 && (
-        <Paper 
-          elevation={1}
-          sx={{ 
-            px: 4,
-            py: 2,
-            bgcolor: alpha(theme.palette.background.paper, 0.95),
-            borderTop: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-          }}
-        >
-          <Box sx={{ maxWidth: '1000px', mx: 'auto' }}>
-            <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1, fontSize: '0.8rem' }}>
-              Suggested questions:
-            </Typography>
-            <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
-              {suggestions.slice(0, 3).map((suggestion) => (
-                <Chip
-                  key={suggestion.id}
-                  label={suggestion.text}
-                  onClick={() => handleSuggestionClick(suggestion)}
-                  size="small"
-                  variant="outlined"
-                  sx={{ 
-                    cursor: 'pointer',
-                    fontSize: '0.8rem',
-                    '&:hover': {
-                      bgcolor: alpha(theme.palette.primary.main, 0.1),
-                      borderColor: theme.palette.primary.main,
-                    },
-                  }}
-                />
-              ))}
-            </Stack>
-          </Box>
-        </Paper>
-      )}
-
-      {/* Professional Input Area */}
-      <Paper 
-        elevation={1}
+      {/* Input Area - Perplexity Style */}
+      <Box 
         sx={{ 
-          bgcolor: '#ffffff',
-          borderTop: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-          px: 4,
-          py: 3,
+          bgcolor: alpha('#ffffff', 0.9),
+          backdropFilter: 'blur(20px)',
+          borderTop: '1px solid #e5e7eb',
+          px: { xs: 2, md: 3 },
+          py: 2,
         }}
       >
-        <Box sx={{ maxWidth: '1000px', mx: 'auto' }}>
+        <Box sx={{ maxWidth: '700px', mx: 'auto' }}>
           <TextField
             ref={inputRef}
             fullWidth
             multiline
             maxRows={4}
-            placeholder="Type your message..."
+            placeholder="Ask a follow up..."
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
             disabled={!isConnected || isTyping}
             sx={{
               '& .MuiOutlinedInput-root': {
-                borderRadius: 3,
-                bgcolor: alpha(theme.palette.background.paper, 0.8),
-                fontSize: '16px',
+                borderRadius: '14px',
+                bgcolor: '#ffffff',
+                fontSize: '15px',
+                border: '1px solid #e5e7eb',
+                boxShadow: '0 2px 12px rgba(0, 0, 0, 0.06)',
+                transition: 'all 0.2s ease',
                 '&:hover': {
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: alpha(theme.palette.primary.main, 0.3),
-                  },
+                  borderColor: '#cbd5e1',
+                  boxShadow: '0 3px 16px rgba(0, 0, 0, 0.08)',
                 },
                 '&.Mui-focused': {
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: theme.palette.primary.main,
-                    borderWidth: 2,
-                  },
+                  borderColor: '#3b82f6',
+                  boxShadow: '0 3px 16px rgba(59, 130, 246, 0.15)',
+                },
+                '& .MuiOutlinedInput-notchedOutline': {
+                  border: 'none',
                 },
               },
               '& .MuiInputBase-input': {
                 py: 2,
-                px: 3,
+                px: 2.5,
+                fontSize: '15px',
+                '&::placeholder': {
+                  color: '#9ca3af',
+                  opacity: 1,
+                },
               },
             }}
             InputProps={{
               startAdornment: (
-                <Box sx={{ mr: 1, display: 'flex', gap: 0.5 }}>
-                  <IconButton size="small" sx={{ color: theme.palette.text.secondary }}>
-                    <AttachFileIcon fontSize="small" />
-                  </IconButton>
-                  <IconButton size="small" sx={{ color: theme.palette.text.secondary }}>
-                    <MicIcon fontSize="small" />
+                <Box sx={{ mr: 0.5, display: 'flex', gap: 0.5 }}>
+                  <IconButton 
+                    size="small" 
+                    sx={{ 
+                      color: '#9ca3af',
+                      width: 28,
+                      height: 28,
+                      '&:hover': { color: '#6b7280' },
+                    }}
+                  >
+                    <AttachFileIcon sx={{ fontSize: 14 }} />
                   </IconButton>
                 </Box>
               ),
@@ -1226,31 +1306,34 @@ const ChatPage = () => {
                   onClick={() => handleSendMessage(inputValue)}
                   disabled={!inputValue.trim() || !isConnected || isTyping}
                   sx={{ 
-                    bgcolor: inputValue.trim() && isConnected && !isTyping ? theme.palette.primary.main : alpha(theme.palette.action.disabled, 0.2),
-                    color: 'white',
-                    width: 40,
-                    height: 40,
-                    mr: 1,
+                    bgcolor: inputValue.trim() && isConnected && !isTyping ? '#3b82f6' : '#f3f4f6',
+                    color: inputValue.trim() && isConnected && !isTyping ? 'white' : '#9ca3af',
+                    width: 32,
+                    height: 32,
+                    mr: 0.5,
+                    borderRadius: '8px',
+                    transition: 'all 0.2s ease',
                     '&:hover': {
-                      bgcolor: inputValue.trim() && isConnected && !isTyping ? theme.palette.primary.dark : alpha(theme.palette.action.disabled, 0.3),
+                      bgcolor: inputValue.trim() && isConnected && !isTyping ? '#2563eb' : '#e5e7eb',
+                      transform: inputValue.trim() && isConnected && !isTyping ? 'scale(1.05)' : 'none',
                     },
                     '&.Mui-disabled': {
-                      bgcolor: alpha(theme.palette.action.disabled, 0.2),
-                      color: alpha(theme.palette.action.disabled, 0.5),
+                      bgcolor: '#f3f4f6',
+                      color: '#d1d5db',
                     },
                   }}
                 >
                   {isTyping ? (
-                    <LoadingAnimation size={20} />
+                    <LoadingAnimation size={14} />
                   ) : (
-                    <SendIcon fontSize="small" />
+                    <SendIcon sx={{ fontSize: 14 }} />
                   )}
                 </IconButton>
               ),
             }}
           />
         </Box>
-      </Paper>
+      </Box>
     </Box>
   );
 };
